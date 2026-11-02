@@ -12,7 +12,7 @@ const csp = [
   "style-src-attr 'unsafe-inline'",
   "font-src https://font.emtech.cc",
   "img-src 'self' data: https://*.googleusercontent.com https://cdn.discordapp.com https://avatars.githubusercontent.com",
-  `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}`,
+  `connect-src 'self' ${process.env.NEXT_PUBLIC_API_BASE_URL ?? ""} ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

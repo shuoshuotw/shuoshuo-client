@@ -1,7 +1,7 @@
 // HeroUI v3 is npm latest; fail if the lockfile ever resolves it (SPEC §5.3)
 import { readFileSync } from "node:fs";
 
-const lock = readFileSync(new URL("../pnpm-lock.yaml", import.meta.url), "utf8");
+const lock = readFileSync(process.argv[2] ?? new URL("../pnpm-lock.yaml", import.meta.url), "utf8");
 const bad = new Set<string>();
 
 for (const [, name, version] of lock.matchAll(/^ {2}'?(@heroui\/[\w-]+)@(\d+\.\d+\.\d+)[^:]*'?:/gm)) {

@@ -1,0 +1,156 @@
+/* The CSS half of §13.1: everything that needs no script. GSAP and anime.js own their own elements. */
+
+/* M-01 waits for the face. theme.js adds this before paint and takes it away on a timer if the script never comes. */
+.pick-pending [data-char] {
+  opacity: 0;
+}
+
+/* M-03 */
+.sheet {
+  transition: background-color var(--duration-slow) var(--ease-in-out);
+}
+
+/* M-16 */
+.button,
+.tool,
+.case-cell {
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    color var(--duration-quick) var(--ease-out),
+    transform var(--duration-quick) var(--ease-out);
+}
+
+.button:active:not(:disabled),
+.tool:active:not(:disabled),
+.case-cell:active {
+  transform: scale(0.98);
+}
+
+/* M-17 */
+.swap {
+  display: inline-grid;
+}
+
+.swap > * {
+  grid-area: 1 / 1;
+  transition: opacity var(--duration-quick) var(--ease-in-out);
+}
+
+.swap > :last-child,
+.swap[data-swapped="true"] > :first-child {
+  opacity: 0;
+}
+
+.swap[data-swapped="true"] > :last-child {
+  opacity: 1;
+}
+
+/* M-18: the count remounts when its value changes */
+.count {
+  animation: count-in var(--duration-fast) var(--ease-in-out);
+}
+
+@keyframes count-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(6px);
+  }
+}
+
+/* M-21 */
+.theme-switching,
+.theme-switching * {
+  transition:
+    background-color var(--duration-fast) var(--ease-in-out),
+    color var(--duration-fast) var(--ease-in-out);
+}
+
+.theme-sun,
+.theme-moon {
+  grid-area: 1 / 1;
+  transition:
+    opacity var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-fast) var(--ease-in-out);
+}
+
+.dark .theme-sun,
+html:not(.dark) .theme-moon {
+  opacity: 0;
+  transform: rotate(45deg);
+}
+
+/* M-12 */
+.page-in {
+  animation: page-in var(--duration-fast) var(--ease-smooth-out);
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-base));
+  }
+}
+
+/* M-13 */
+.skeleton-lines > span {
+  animation: pulse 1.6s var(--ease-linear) infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* M-15 */
+.field-shake {
+  animation: shake var(--duration-slow) cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .button,
+  .tool,
+  .case-cell,
+  .swap > *,
+  .theme-sun,
+  .theme-moon,
+  .theme-switching,
+  .theme-switching * {
+    transition-duration: 0ms;
+  }
+
+  .button:active:not(:disabled),
+  .tool:active:not(:disabled),
+  .case-cell:active {
+    transform: none;
+  }
+
+  .count,
+  .skeleton-lines > span,
+  .field-shake {
+    animation: none;
+  }
+
+  .page-in {
+    animation: page-in-reduced var(--duration-quick) linear;
+  }
+
+  @keyframes page-in-reduced {
+    from {
+      opacity: 0;
+    }
+  }
+}

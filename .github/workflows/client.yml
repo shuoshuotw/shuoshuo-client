@@ -1,0 +1,50 @@
+name: Client
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The same image scripts/update-baselines.sh uses, so screenshots compare like with like
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
+    env:
+      CI: "1"
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3999
+      NEXT_PUBLIC_MOTION_LOG: "1"
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check:versions
+      - run: pnpm lint:design
+      - run: pnpm typecheck
+      - run: pnpm test
+
+      # The home page is prerendered at build time, so the mock has to be up by then
+      - name: Start the mock Core
+        run: node tests/e2e/mock-core.mjs > mock-core.log 2>&1 &
+      - run: pnpm build
+      - name: First Load JS budget
+        run: node scripts/check-bundle.mjs
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results
+          retention-days: 7
