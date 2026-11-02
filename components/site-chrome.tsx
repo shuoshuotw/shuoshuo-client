@@ -1,5 +1,7 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import credits from "@/public/images/credits.json";
+import { AuthButton } from "./auth-button";
 import { FooterCurtain } from "./footer-curtain";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -19,11 +21,21 @@ export function SiteHeader() {
       </nav>
       <div className="site-tools">
         <ThemeToggle />
-        <Link className="button" href="/login">
-          登入
-        </Link>
+        <AuthButton />
       </div>
     </header>
+  );
+}
+
+export function PageShell({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <>
+      <div className="page-body">
+        <SiteHeader />
+        <main className={className}>{children}</main>
+      </div>
+      <SiteFooter />
+    </>
   );
 }
 

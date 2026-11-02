@@ -350,8 +350,8 @@ test.describe("motion", () => {
     });
     await open(page);
     await page.getByRole("button", { name: "再抽一句" }).click();
-    await page.getByRole("link", { name: "提交", exact: true }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("這一格缺字");
+    await page.getByRole("link", { name: "近期熱門", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("近期熱門");
     expect(errors).toEqual([]);
   });
 

@@ -1,22 +1,24 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { type ReactNode, useId, useRef } from "react";
 import { morphDialog } from "@/motion/anime";
 
 type Props = {
-  label: string;
+  label: ReactNode;
   title: string;
-  children: ReactNode;
+  triggerClassName?: string;
+  /** A function renders its own buttons and is handed `close`, so a form can close itself when it is done. */
+  children: ReactNode | ((close: () => void) => ReactNode);
 };
 
 /**
  * M-04. A native <dialog>, so the focus trap, Esc, the backdrop and returning focus to the button all
  * belong to the browser; the animation only has to move things.
  */
-export function MorphDialog({ label, title, children }: Props) {
+export function MorphDialog({ label, title, triggerClassName = "button", children }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const layoutId = title;
+  const layoutId = useId();
 
   const open = () => {
     const element = dialog.current;
@@ -32,7 +34,7 @@ export function MorphDialog({ label, title, children }: Props) {
 
   return (
     <>
-      <button ref={trigger} type="button" className="button" data-layout-id={layoutId} onClick={open}>
+      <button ref={trigger} type="button" className={triggerClassName} data-layout-id={layoutId} onClick={open}>
         {label}
       </button>
       <dialog
@@ -48,11 +50,17 @@ export function MorphDialog({ label, title, children }: Props) {
         }}
       >
         <div className="morph-card" data-layout-id={layoutId}>
-          <h2 className="section-title">{title}</h2>
-          <div className="morph-body">{children}</div>
-          <button type="button" className="button button-primary" onClick={close}>
-            關閉
-          </button>
+          <h2 className="dialog-title">{title}</h2>
+          {typeof children === "function" ? (
+            children(close)
+          ) : (
+            <>
+              <div className="morph-body">{children}</div>
+              <button type="button" className="button button-primary" onClick={close}>
+                關閉
+              </button>
+            </>
+          )}
         </div>
       </dialog>
     </>

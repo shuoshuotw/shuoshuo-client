@@ -20,11 +20,17 @@ export async function proxy(request: NextRequest) {
       },
     },
   );
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+  const { pathname, search } = request.nextUrl;
+  if (!data?.claims && !pathname.startsWith("/auth")) {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", `${pathname}${search}`);
+    return NextResponse.redirect(login);
+  }
   return response;
 }
 
 // Public pages must stay out: a Set-Cookie would make them uncacheable (SPEC §10.5)
 export const config = {
-  matcher: ["/me/:path*", "/admin/:path*", "/auth/:path*"],
+  matcher: ["/me/:path*", "/admin/:path*", "/auth/:path*", "/submit"],
 };

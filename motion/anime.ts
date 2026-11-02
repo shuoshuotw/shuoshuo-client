@@ -64,6 +64,9 @@ export async function staggerRows(rows: Element[]) {
     for (const row of first) row.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150 });
     return;
   }
+  // Hidden before the first await, or the rows flash while anime.js loads
+  for (const row of first) (row as HTMLElement).style.opacity = "0";
+  document.documentElement.classList.remove("pick-pending");
   const { animate, stagger } = await loadAnimate();
   logMotion("M-09", "full", "start");
   animate(first, { y: [12, 0], opacity: [0, 1], duration: 250, delay: stagger(40), ease: "outExpo" });

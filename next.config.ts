@@ -28,6 +28,11 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [{ key: "Content-Security-Policy", value: csp }],
       },
+      // CD-01: nothing behind a sign-in may reach the CDN
+      ...["/me/:path*", "/admin/:path*", "/auth/:path*", "/submit"].map((source) => ({
+        source,
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      })),
     ];
   },
 };

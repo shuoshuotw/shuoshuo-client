@@ -2,6 +2,7 @@
 @import "../styles/tokens.css";
 @import "../styles/motion.css";
 @import "../styles/components.css";
+@import "../styles/pages.css";
 @plugin "../hero.ts";
 @source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
 @custom-variant dark (&:is(.dark *));

@@ -30,9 +30,38 @@ const quotes = QUOTES.map(quote);
 let drawn = 0;
 
 const send = (response, status, body, type = "application/json; charset=utf-8") => {
-  response.writeHead(status, { "content-type": type, "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" });
+  // Reflected: a literal * does not cover Authorization
+  const headers = response.req.headers["access-control-request-headers"] ?? "*";
+  response.writeHead(status, { "content-type": type, "access-control-allow-origin": "*", "access-control-allow-headers": headers, "access-control-allow-methods": "*" });
   response.end(typeof body === "string" ? body : JSON.stringify(body));
 };
+
+// The signed-in visitor of the UI-01 baselines. tests/e2e/session.ts holds the matching cookie, and this also stands in for Supabase Auth.
+const ME_ID = "00000000-0000-4000-a000-000000000002";
+const standing = { status: "active", suspended_until: null, strike_count: 0, strike_limit: 4, can_submit: true, can_comment: true };
+const me = { id: ME_ID, username: "小明", avatar_url: null, likes_public: true, favorites_public: true, roles: [], standing, pending_notices: [] };
+const authUser = {
+  id: ME_ID,
+  aud: "authenticated",
+  role: "authenticated",
+  email: "ming@example.com",
+  app_metadata: { provider: "google", providers: ["google"] },
+  user_metadata: {},
+  created_at: "2026-10-01T00:00:00.000Z",
+  identities: [
+    { id: "g", identity_id: "g", user_id: ME_ID, provider: "google", identity_data: { email: "ming@example.com" }, created_at: "2026-10-01T00:00:00.000Z" },
+    { id: "d", identity_id: "d", user_id: ME_ID, provider: "discord", identity_data: { email: "ming@example.com" }, created_at: "2026-10-02T00:00:00.000Z" },
+  ],
+};
+const apiKeys = [
+  { id: "00000000-0000-4000-b000-000000000001", name: "我的部落格", key_prefix: "shuoshuo_test_AbCdEfGh", scopes: ["quotes:read"], last_used_at: "2026-10-30T03:00:00.000Z", regenerated_at: null, created_at: "2026-10-20T03:00:00.000Z" },
+  { id: "00000000-0000-4000-b000-000000000002", name: "每日一句機器人", key_prefix: "shuoshuo_test_IjKlMnOp", scopes: ["quotes:read", "reactions:write"], last_used_at: null, regenerated_at: null, created_at: "2026-10-25T03:00:00.000Z" },
+];
+const comments = [
+  { id: "00000000-0000-4000-c000-000000000001", user: { id: ME_ID, username: "小明", avatar_url: null }, content: "這句我抄在筆記本的第一頁。", pinned_at: "2026-10-28T00:00:00.000Z", edited_at: null, created_at: "2026-10-27T02:00:00.000Z" },
+  { id: "00000000-0000-4000-c000-000000000002", user: { id: "00000000-0000-4000-a000-000000000003", username: "小華", avatar_url: null }, content: "第一次看到是在高中，現在讀起來又不一樣了。", pinned_at: null, edited_at: "2026-10-27T01:00:00.000Z", created_at: "2026-10-26T02:00:00.000Z" },
+];
+const page = (data, meta) => ({ data, meta: { ...meta, pagination: { limit: 20, next_cursor: null, has_more: false } } });
 
 createServer((request, response) => {
   const url = new URL(request.url, "http://mock");
@@ -50,10 +79,28 @@ createServer((request, response) => {
     if (url.searchParams.get("format") === "text") return send(response, 200, item.content, "text/plain; charset=utf-8");
     return send(response, 200, { data: item, meta });
   }
-  if (url.pathname === "/v1/quotes") {
+  if (url.pathname === "/v1/quotes" || url.pathname === "/v1/quotes/trending") {
     const limit = Number(url.searchParams.get("limit") ?? 20);
-    return send(response, 200, { data: quotes.slice(0, limit), meta: { ...meta, pagination: { limit, next_cursor: null, has_more: false } } });
+    const categories = url.searchParams.get("categories")?.split(",");
+    const pool = categories ? quotes.filter((item) => categories.includes(item.category.key)) : quotes;
+    return send(response, 200, { data: pool.slice(0, limit), meta: { ...meta, pagination: { limit, next_cursor: null, has_more: false } } });
   }
+  const comment = url.pathname.match(/^\/v1\/quotes\/([^/]+)\/comments$/);
+  if (comment) return send(response, 200, page(comments.map((item) => ({ ...item, quote_id: comment[1] })), meta));
+  const single = url.pathname.match(/^\/v1\/quotes\/([^/]+)$/);
+  if (single) {
+    const item = quotes.find(({ id }) => id === single[1]);
+    if (item) return send(response, 200, { data: item, meta });
+    if (single[1].endsWith("00000000ff10")) {
+      return send(response, 410, { error: { code: "QUOTE_REMOVED", status: 410, message: "這則說說已移除", details: { reason: "spam" }, request_id: "req_mock" } });
+    }
+    return send(response, 404, { error: { code: "QUOTE_NOT_FOUND", status: 404, message: "找不到這則說說", request_id: "req_mock" } });
+  }
+  if (url.pathname === "/v1/me") return send(response, 200, { data: me, meta });
+  if (url.pathname === "/v1/me/api-keys") return send(response, 200, { data: apiKeys, meta });
+  if (url.pathname === "/v1/me/quote-states") return send(response, 200, { data: { states: {} }, meta });
+  if (url.pathname === "/auth/v1/user") return send(response, 200, authUser);
+  if (url.pathname.startsWith("/auth/v1/passkeys")) return send(response, 200, []);
   if (url.pathname === "/__reset") {
     drawn = 0;
     return send(response, 200, {});

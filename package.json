@@ -16,7 +16,8 @@
     "sync:openapi": "node scripts/sync-openapi.mjs",
     "test": "vitest run",
     "lint:design": "node scripts/lint-design.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:full": "playwright test -c playwright.full.config.ts"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",

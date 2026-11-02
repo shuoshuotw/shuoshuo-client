@@ -18,7 +18,8 @@ jobs:
       CI: "1"
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3999
       NEXT_PUBLIC_MOTION_LOG: "1"
-      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      # The mock answers for Supabase Auth too (tests/e2e/session.ts)
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:3999
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci
     steps:
       - uses: actions/checkout@v4
@@ -48,3 +49,60 @@ jobs:
           name: playwright-results
           path: test-results
           retention-days: 7
+
+  # TEST_PLAN §8: the real Core on a real database, from Core's main branch
+  full-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: shuoshuotw/shuoshuo-core
+          path: .core
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+        working-directory: .core
+
+      - run: pnpm exec supabase start -x studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,mailpit
+        working-directory: .core
+      - name: Write Core's .env.local and share its secrets
+        working-directory: .core
+        run: |
+          secret=$(pnpm exec supabase status -o env | grep -E '^SECRET_KEY=' | cut -d= -f2- | tr -d '"')
+          hmac=$(openssl rand -hex 32)
+          sed -e "s|^SUPABASE_SECRET_KEY=.*|SUPABASE_SECRET_KEY=$secret|" \
+              -e "s|^INTERNAL_HMAC_SECRETS=.*|INTERNAL_HMAC_SECRETS=$hmac|" \
+              -e "/^SENTRY_DSN=/d" .env.example > .env.local
+          echo "SUPABASE_SECRET_KEY=$secret" >> "$GITHUB_ENV"
+          echo "INTERNAL_HMAC_SECRETS=$hmac" >> "$GITHUB_ENV"
+      - run: pnpm build
+        working-directory: .core
+      - name: Start Core
+        working-directory: .core
+        run: |
+          pnpm start > core.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3001/v1/health && exit 0; sleep 1; done
+          cat core.log
+          exit 1
+
+      - run: bash scripts/build-full.sh
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:full
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-full-results
+          path: test-results
+          retention-days: 7
+      - name: Core log
+        if: failure()
+        run: cat .core/core.log

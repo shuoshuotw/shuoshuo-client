@@ -1,32 +1,24 @@
 "use client";
 
-import { Bookmark, Check, ChevronLeft, Columns2, Copy, Heart, Rows2, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronLeft, Columns2, Copy, Rows2, SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { Quote } from "@/lib/api/client";
-import { isSignedIn, sendReaction } from "@/lib/api/reactions";
-import { burstLike, pressFavorite } from "@/motion/anime";
+import { notify } from "@/lib/toast";
 import { dropType, flipLayout, pickType } from "@/motion/gsap";
 import { useQuoteStageStore } from "@/stores/quote-stage";
-import { type ReactionKind, useReactionStore } from "@/stores/reactions";
 import { useUiStore } from "@/stores/ui";
 import { QuoteSheet, SheetBlank } from "./quote-sheet";
+import { ReactionButtons, useQuoteReactions } from "./reaction-buttons";
 import { TypeCase } from "./type-case";
 
 const CaseDrawer = dynamic(() => import("./case-drawer").then((module) => module.CaseDrawer), { ssr: false });
-
-async function toast(title: string) {
-  const { addToast } = await import("@heroui/toast");
-  addToast({ title });
-}
 
 // Vertical setting only holds short quotes on a phone without sideways scrolling (§12.8)
 const fitsVertical = (quote: Quote | null) => !quote || quote.length <= 40 || window.innerWidth >= 640;
 
 export function QuoteStage({ initial }: { initial: Quote | null }) {
-  const router = useRouter();
   const stage = useRef<HTMLDivElement>(null);
   const restore = useRef<() => void>(() => {});
   const picked = useRef(false);
@@ -39,7 +31,6 @@ export function QuoteStage({ initial }: { initial: Quote | null }) {
   const categories = useQuoteStageStore((state) => state.categories);
   const { next, back, toggleCategory, clearCategories, settle, hydrate, restoreFilter } = useQuoteStageStore.getState();
   const layout = useUiStore((state) => state.layout);
-  const reaction = useReactionStore((state) => (current ? state.byQuote[current.id] : undefined));
 
   useEffect(() => {
     hydrate(initial);
@@ -49,9 +40,7 @@ export function QuoteStage({ initial }: { initial: Quote | null }) {
     return useUiStore.getState().connect();
   }, [hydrate, initial, restoreFilter]);
 
-  useEffect(() => {
-    if (current) useReactionStore.getState().seed(current.id, { like_count: current.stats.like_count, favorite_count: current.stats.favorite_count });
-  }, [current]);
+  useQuoteReactions(current);
 
   // M-01 on arrival, once the face is in or 800 ms have passed
   useEffect(() => {
@@ -105,22 +94,10 @@ export function QuoteStage({ initial }: { initial: Quote | null }) {
     const root = stage.current;
     const wanted = layout === "horizontal" ? "vertical" : "horizontal";
     if (wanted === "vertical" && !fitsVertical(current)) {
-      void toast("這句說說太長，手機上無法直排");
+      void notify("這句說說太長，手機上無法直排");
       return;
     }
     if (root) void flipLayout(root, () => useUiStore.getState().setLayout(wanted));
-  };
-
-  const react = async (kind: ReactionKind, button: HTMLButtonElement) => {
-    if (!current) return;
-    if (!(await isSignedIn())) {
-      router.push("/login?next=/");
-      return;
-    }
-    const icon = button.querySelector("svg");
-    const active = kind === "like" ? reaction?.liked : reaction?.favorited;
-    if (icon && !active) void (kind === "like" ? burstLike(button, icon) : pressFavorite(icon));
-    useReactionStore.getState().toggle(current.id, kind, sendReaction, () => void toast("操作沒有成功，請再試一次"));
   };
 
   const copy = async () => {
@@ -182,34 +159,7 @@ export function QuoteStage({ initial }: { initial: Quote | null }) {
           {layout === "horizontal" ? <Columns2 aria-hidden="true" /> : <Rows2 aria-hidden="true" />}
           <span className="tool-label">{layout === "horizontal" ? "直排" : "橫排"}</span>
         </button>
-        <button
-          type="button"
-          className="tool tool-count"
-          data-active={reaction?.liked ?? false}
-          aria-pressed={reaction?.liked ?? false}
-          aria-label={`按讚，目前 ${reaction?.like_count ?? 0} 個`}
-          disabled={quiet}
-          onClick={(event) => void react("like", event.currentTarget)}
-        >
-          <Heart aria-hidden="true" />
-          <span className="count" key={reaction?.like_count}>
-            {reaction?.like_count ?? 0}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="tool tool-count"
-          data-active={reaction?.favorited ?? false}
-          aria-pressed={reaction?.favorited ?? false}
-          aria-label={`收藏，目前 ${reaction?.favorite_count ?? 0} 個`}
-          disabled={quiet}
-          onClick={(event) => void react("favorite", event.currentTarget)}
-        >
-          <Bookmark aria-hidden="true" />
-          <span className="count" key={reaction?.favorite_count}>
-            {reaction?.favorite_count ?? 0}
-          </span>
-        </button>
+        <ReactionButtons quote={current} disabled={quiet} />
         <button type="button" className="tool tool-count" aria-label={copied ? "已複製" : "複製這句"} disabled={quiet} onClick={() => void copy()}>
           <span className="swap" data-swapped={copied} aria-hidden="true">
             <Copy />

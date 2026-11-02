@@ -17,6 +17,8 @@ export type SendReaction = (quoteId: string, kind: ReactionKind, active: boolean
 type Reactions = {
   byQuote: Record<string, ReactionState>;
   seed: (quoteId: string, state: Partial<ReactionState>) => void;
+  /** The signed-in user's own state, from /v1/me/quote-states. Never touches a request in flight. */
+  merge: (quoteId: string, state: Partial<Pick<ReactionState, "liked" | "favorited">>) => void;
   toggle: (quoteId: string, kind: ReactionKind, send: SendReaction, onFail: () => void) => void;
 };
 
@@ -60,6 +62,10 @@ export const useReactionStore = create<Reactions>((set, get) => {
 
     seed: (quoteId, state) => {
       if (!get().byQuote[quoteId]) patch(quoteId, state);
+    },
+
+    merge: (quoteId, state) => {
+      if (!get().byQuote[quoteId]?.pending) patch(quoteId, state);
     },
 
     toggle: (quoteId, kind, send, onFail) => {

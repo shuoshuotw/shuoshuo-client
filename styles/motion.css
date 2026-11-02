@@ -1,8 +1,13 @@
 /* The CSS half of §13.1: everything that needs no script. GSAP and anime.js own their own elements. */
 
 /* M-01 waits for the face. theme.js adds this before paint and takes it away on a timer if the script never comes. */
-.pick-pending [data-char] {
+.pick-pending .rows > * {
   opacity: 0;
+}
+
+/* Hidden, not transparent: the rewrap when the face arrives must not count as a layout shift (MO-10) */
+.pick-pending .quote > [aria-hidden] {
+  visibility: hidden;
 }
 
 /* M-03 */

@@ -13,7 +13,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W 2>/dev/null || pwd):/src" "$IMAG
   n --quiet 26.13.0 > /dev/null
   hash -r
   export CI=1 NEXT_PUBLIC_API_BASE_URL=http://localhost:3999 NEXT_PUBLIC_MOTION_LOG=1
-  export NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=baseline
+  export NEXT_PUBLIC_SUPABASE_URL=http://localhost:3999 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=baseline
   pnpm install --frozen-lockfile --silent
   # The home page is prerendered at build time, so the mock has to be up by then
   node tests/e2e/mock-core.mjs &
