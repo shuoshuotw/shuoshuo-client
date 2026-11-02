@@ -1,0 +1,29 @@
+:root {
+  --ground: #e6e7e3;
+  --surface: #f5f5f1;
+  --sunk: #d8dad5;
+  --ink: #161a1d;
+  --muted: #50575c;
+  --stock-ink: #161a1d;
+  --stock-anime: #f4a6a0;
+  --stock-manga: #f3d35b;
+  --stock-game: #6ccfc0;
+  --stock-music: #efa8c8;
+  --stock-literature: #b5c97a;
+  --stock-original: #f3a451;
+  --stock-flim: #8ec3ee;
+  --stock-poetry: #c9cfc9;
+  --stock-internet: #8fdb8a;
+  --stock-philosophy: #a8b4c4;
+  --stock-anti-motiv: #c3b1e8;
+  --stock-ai: #7fd3e8;
+  --stock-other: #d9d9d2;
+}
+
+.dark {
+  --ground: #121517;
+  --surface: #1b1f22;
+  --sunk: #0c0e10;
+  --ink: #ecede8;
+  --muted: #a2a8ab;
+}

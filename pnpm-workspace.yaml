@@ -1,0 +1,14 @@
+saveExact: true
+# 7 days, in minutes (SPEC §5.1)
+minimumReleaseAge: 10080
+# Copies its React 19 build into dist; only touches its own package files
+allowBuilds:
+  "@heroui/shared-utils": true
+publicHoistPattern:
+  - "*@heroui/*"
+# HeroUI v3 is npm latest; these pins stop it being installed (SPEC §5.3)
+overrides:
+  "@heroui/react": 2.8.10
+  "@heroui/theme": 2.4.26
+  "@heroui/system": 2.4.28
+  framer-motion: 12.43.0
