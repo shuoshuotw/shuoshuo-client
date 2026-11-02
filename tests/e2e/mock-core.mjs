@@ -39,7 +39,11 @@ const send = (response, status, body, type = "application/json; charset=utf-8") 
 // The signed-in visitor of the UI-01 baselines. tests/e2e/session.ts holds the matching cookie, and this also stands in for Supabase Auth.
 const ME_ID = "00000000-0000-4000-a000-000000000002";
 const standing = { status: "active", suspended_until: null, strike_count: 0, strike_limit: 4, can_submit: true, can_comment: true };
-const me = { id: ME_ID, username: "小明", avatar_url: null, likes_public: true, favorites_public: true, roles: [], standing, pending_notices: [] };
+const me = { id: ME_ID, username: "小明", avatar_url: null, likes_public: true, favorites_public: true, roles: ["admin"], standing, pending_notices: [] };
+const adminCases = [
+  { id: "00000000-0000-4000-d000-000000000001", target_type: "quote", target_id: "00000000-0000-4000-8000-000000000002", status: "open", reporter_count: 4, effective_reporter_count: 3, top_reason: "spam", preview: "世界上只有一種真正的英雄主義，就是認清生活的真相之後，依然熱愛生活。", created_at: "2026-10-28T02:00:00.000Z" },
+  { id: "00000000-0000-4000-d000-000000000002", target_type: "comment", target_id: "00000000-0000-4000-c000-000000000002", status: "open", reporter_count: 1, effective_reporter_count: 1, top_reason: "harassment", preview: "第一次看到是在高中，現在讀起來又不一樣了。", created_at: "2026-10-29T02:00:00.000Z" },
+];
 const authUser = {
   id: ME_ID,
   aud: "authenticated",
@@ -95,6 +99,22 @@ createServer((request, response) => {
       return send(response, 410, { error: { code: "QUOTE_REMOVED", status: 410, message: "這則說說已移除", details: { reason: "spam" }, request_id: "req_mock" } });
     }
     return send(response, 404, { error: { code: "QUOTE_NOT_FOUND", status: 404, message: "找不到這則說說", request_id: "req_mock" } });
+  }
+  if (url.pathname === "/v1/admin/cases") return send(response, 200, page(adminCases, meta));
+  if (url.pathname.startsWith("/v1/admin/cases/")) {
+    const [item] = adminCases;
+    return send(response, 200, {
+      data: {
+        ...item,
+        resolution: null,
+        final_reason: null,
+        target: { ...quotes[1], removed_reason: null, removed_at: null },
+        reports: [{ reason: "spam", detail: "同一句貼了很多次", reporter_id: "00000000-0000-4000-a000-000000000003", is_discounted: false, created_at: "2026-10-28T02:00:00.000Z" }],
+        subject: { user_id: ME_ID, username: "小明", standing, prior_violations: [], would_ban: false },
+        audit: [],
+      },
+      meta,
+    });
   }
   if (url.pathname === "/v1/me") return send(response, 200, { data: me, meta });
   if (url.pathname === "/v1/me/api-keys") return send(response, 200, { data: apiKeys, meta });

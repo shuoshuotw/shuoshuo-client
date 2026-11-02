@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { coreCall, coreToken, newUser, quoteHeading, signIn, submitQuote, uniqueQuote } from "./helpers";
+import { coreCall, coreToken, expect, newUser, quoteHeading, signIn, submitQuote, test, uniqueQuote } from "./helpers";
 
 test("E2E-01: an anonymous visitor reads, draws, filters and shares", async ({ page }) => {
   // The desktop share sheet cannot be driven from a test; without it the button copies the link

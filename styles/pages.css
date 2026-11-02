@@ -540,6 +540,10 @@
   min-height: 44px;
 }
 
+.record-list li {
+  align-items: flex-start;
+}
+
 .table-scroll {
   overflow-x: auto;
 }

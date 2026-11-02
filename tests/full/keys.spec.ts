@@ -1,5 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
-import { CORE, coreCall, coreToken, newUser, signIn } from "./helpers";
+import type { Page } from "@playwright/test";
+import { CORE, coreCall, coreToken, expect, newUser, signIn, test } from "./helpers";
 
 async function createKey(page: Page, name: string) {
   await page.getByRole("button", { name: "建立 API Key" }).click();

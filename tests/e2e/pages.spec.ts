@@ -143,7 +143,7 @@ test.describe("UI-05: axe", () => {
 test.describe("UI-01: visual baselines", () => {
   test.skip(process.platform !== "linux", "Baselines are rendered in the Playwright Linux image only");
 
-  const PAGES = { detail: `/q/${QUOTE_ID}`, submit: "/submit", keys: "/me/api-keys", security: "/me/security" };
+  const PAGES = { detail: `/q/${QUOTE_ID}`, submit: "/submit", keys: "/me/api-keys", security: "/me/security", cases: "/admin/cases", case: "/admin/cases/00000000-0000-4000-d000-000000000001" };
 
   for (const [name, path] of Object.entries(PAGES)) {
     for (const colorScheme of ["light", "dark"] as const) {

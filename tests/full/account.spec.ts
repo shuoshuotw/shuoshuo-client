@@ -1,6 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
-import { coreCall, coreToken, newUser, quoteHeading, signIn, signOut, submitQuote, uniqueQuote } from "./helpers";
+import { coreCall, coreToken, distinctCaller, expect, newUser, quoteHeading, signIn, signOut, submitQuote, test, uniqueQuote } from "./helpers";
 
 test("E2E-02: sign in, submit, the tick, the detail page, then my submissions", async ({ page }) => {
   const user = await newUser();
@@ -221,8 +220,12 @@ test("AU-06: a taken identity is explained in Chinese", async ({ page }) => {
 
 test("AU-07: sign out here, elsewhere and everywhere", async ({ browser }) => {
   const user = await newUser();
-  const first = await (await browser.newContext({ permissions: [] })).newPage();
-  const second = await (await browser.newContext({ permissions: [] })).newPage();
+  const firstContext = await browser.newContext();
+  const secondContext = await browser.newContext();
+  await distinctCaller(firstContext);
+  await distinctCaller(secondContext);
+  const first = await firstContext.newPage();
+  const second = await secondContext.newPage();
   await signIn(first, user);
   await signIn(second, user);
 

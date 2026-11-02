@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { expect, type Page } from "@playwright/test";
+import { test as base, type BrowserContext, expect, type Page } from "@playwright/test";
+
+export { expect };
 
 export const CORE = "http://localhost:3001";
 const SUPABASE = "http://127.0.0.1:54321";
@@ -16,6 +18,21 @@ function secretKey() {
 
 const SECRET = secretKey();
 const adminHeaders = { apikey: SECRET, Authorization: `Bearer ${SECRET}`, "Content-Type": "application/json" };
+
+const randomIp = () => `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+
+/** Each test gets its own address, so a whole run from one machine does not spend one address's AUTH-GUARD quota (§10.4). */
+export async function distinctCaller(context: BrowserContext) {
+  const ip = randomIp();
+  await context.route(`${CORE}/**`, (route) => route.continue({ headers: { ...route.request().headers(), "cf-connecting-ip": ip } }));
+}
+
+export const test = base.extend({
+  context: async ({ context }, use) => {
+    await distinctCaller(context);
+    await use(context);
+  },
+});
 
 export type TestUser = { id: string; email: string; password: string; username: string };
 
@@ -111,7 +128,7 @@ export async function coreCall(path: string, { method = "GET", token, body }: { 
   const response = await fetch(`${CORE}${path}`, {
     method,
     headers: {
-      "cf-connecting-ip": `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+      "cf-connecting-ip": randomIp(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },

@@ -1,4 +1,4 @@
-import type { ApiKeyScope, ReportReason, Standing } from "@/lib/api/client";
+import type { ApiKeyScope, Appeal, ReportReason, Sanction, Standing } from "@/lib/api/client";
 import { formatTime } from "./format";
 
 export const REPORT_REASONS: Record<ReportReason, string> = {
@@ -21,6 +21,17 @@ export const API_SCOPES: Record<ApiKeyScope, string> = {
   "reactions:write": "按讚與收藏",
   "comments:write": "留言",
   "me:read": "讀取我的資料",
+};
+
+export const SANCTION_KINDS: Record<Sanction["kind"], string> = {
+  submit_suspension: "暫停提交",
+  account_ban: "帳號停權",
+};
+
+export const APPEAL_STATUS: Record<Appeal["status"], string> = {
+  pending: "審理中",
+  accepted: "已接受",
+  rejected: "已駁回",
 };
 
 export function standingText(standing: Standing) {

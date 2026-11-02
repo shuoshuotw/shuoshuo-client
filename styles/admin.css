@@ -1,0 +1,293 @@
+/* Accent ladder on an open plane (§12.7). Colour stays small; a large surface only ever gets --accent-tint. */
+
+.admin {
+  display: grid;
+  min-height: 100svh;
+}
+
+.admin-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--frame);
+}
+
+.admin-nav {
+  display: flex;
+  order: 3;
+  flex: 1 0 100%;
+  gap: var(--space-1);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.admin-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+}
+
+.admin-nav a:hover {
+  background: var(--sunk);
+}
+
+.admin-nav a[aria-current="page"] {
+  background: var(--sunk);
+  font-weight: 700;
+}
+
+.admin-tools {
+  margin-left: auto;
+}
+
+.admin-main {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  min-width: 0;
+  padding: var(--space-3) var(--frame) var(--space-7);
+}
+
+.admin-title {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.admin-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.segmented {
+  display: inline-flex;
+  background: var(--sunk);
+}
+
+.segmented button {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  cursor: pointer;
+  transition: background-color var(--duration-quick) var(--ease-out);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--action);
+  color: var(--action-ink);
+  font-weight: 700;
+}
+
+.count-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.count-card {
+  display: grid;
+  justify-items: start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-quick) var(--ease-out);
+}
+
+.count-card:hover {
+  background: var(--sunk);
+}
+
+.count-card[aria-pressed="true"] {
+  background: var(--accent-tint);
+}
+
+.count-card-number {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.case-preview-cell {
+  min-width: 14em;
+}
+
+.case-preview {
+  display: block;
+  max-width: 44em;
+  overflow-wrap: anywhere;
+}
+
+/* The two panes share one screen; each scrolls on its own */
+.case-panels {
+  height: calc(100svh - var(--space-3) - var(--space-7));
+}
+
+.case-separator {
+  width: 1px;
+  background: var(--sunk);
+}
+
+.case-separator:hover,
+.case-separator:focus-visible {
+  background: var(--muted);
+}
+
+.case-queue,
+.case-pane {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.case-queue {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  padding-right: var(--space-3);
+}
+
+.case-queue-item {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+}
+
+.case-queue-item:hover {
+  background: var(--sunk);
+}
+
+.case-queue-item[aria-current="page"] {
+  background: var(--accent-tint);
+}
+
+.case-pane {
+  padding-left: var(--space-5);
+}
+
+.case-detail {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 760px;
+}
+
+.case-section {
+  display: grid;
+  justify-items: stretch;
+  gap: var(--space-3);
+}
+
+.case-comment {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.resolve-form {
+  padding: var(--space-5);
+  background: var(--surface);
+}
+
+.resolve-form .input {
+  background: var(--ground);
+}
+
+.case-reports {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.appeal-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.appeal-card {
+  justify-items: stretch;
+}
+
+.admin-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-7);
+}
+
+.admin-facts dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.admin-facts dd {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-filters {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.audit-metadata {
+  max-width: 44ch;
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+@media (min-width: 768px) {
+  .audit-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    max-width: 760px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .admin-side {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    height: 100svh;
+    padding: var(--space-4) var(--space-3) var(--space-4) var(--frame);
+  }
+
+  .admin-nav {
+    order: 0;
+    flex: 1;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .admin-tools {
+    margin-left: 0;
+  }
+
+  .admin-main {
+    padding: var(--space-4) var(--frame) var(--space-7) var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmented button,
+  .count-card {
+    transition-duration: 0ms;
+  }
+}
