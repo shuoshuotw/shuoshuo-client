@@ -43,7 +43,7 @@ test("E2E-06: regenerating retires the old key and hands over a new one", async 
   await signIn(page, await newUser());
   await page.goto("/me/api-keys");
   const old = await createKey(page, "要換的");
-  await page.getByRole("button", { name: "我已存好" }).click();
+  await page.getByRole("button", { name: "我已妥善儲存" }).click();
 
   await page.getByRole("button", { name: "重新產生" }).click();
   await page.getByRole("dialog", { name: "重新產生「要換的」" }).getByRole("button", { name: "重新產生" }).click();

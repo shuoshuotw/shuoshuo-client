@@ -1,32 +1,43 @@
 "use client";
 
+import { Bookmark, Heart, Quote } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import { createPortal } from "react-dom";
+import { useDockSlot, useSlidingPill } from "./dock-slot";
 
-type Props = { tabs: { href: string; label: string }[] };
+// Named rather than passed: the tabs come from a server component, which cannot hand over a component
+const ICONS = { quote: Quote, heart: Heart, bookmark: Bookmark };
 
-/** M-22 for tabs that are real URLs: the block slides from the old tab to the new one. Next keeps this mounted across them. */
+type Props = { tabs: readonly { href: string; label: string; icon: keyof typeof ICONS }[] };
+
+/**
+ * M-22 for tabs that are real URLs: the pill slides from the old tab to the new one (useSlidingPill, so it is pulled
+ * along with its tab by the magnet, as on the categories bar). On a phone the tabs join the dock as its bar, like the
+ * personal centre's. Next keeps this mounted across them.
+ */
 export function RouteTabs({ tabs }: Props) {
   const pathname = usePathname();
   const nav = useRef<HTMLElement>(null);
-  const [block, setBlock] = useState({ left: 0, width: 0 });
+  const slot = useDockSlot();
   // usePathname is encoded the same way the hrefs are, except for case in the percent escapes
   const current = decodeURIComponent(pathname);
+  useSlidingPill(nav, `${current}${slot ? " docked" : ""}`);
 
-  useLayoutEffect(() => {
-    const active = nav.current?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (active) setBlock({ left: active.offsetLeft, width: active.offsetWidth });
-  }, [current]);
-
-  return (
+  const bar = (
     <nav className="route-tabs" ref={nav} aria-label="分頁">
-      <span className="route-tabs-block" style={{ transform: `translateX(${block.left}px)`, width: block.width }} />
-      {tabs.map(({ href, label }) => (
-        <Link key={href} href={href} aria-current={decodeURIComponent(href) === current ? "page" : undefined}>
-          {label}
-        </Link>
-      ))}
+      <span className="nav-pill" aria-hidden="true" />
+      {tabs.map(({ href, label, icon }) => {
+        const Icon = ICONS[icon];
+        return (
+          <Link key={href} href={href} data-magnet aria-current={decodeURIComponent(href) === current ? "page" : undefined}>
+            <Icon aria-hidden="true" size={18} />
+            <span className="route-tab-label">{label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
+  return slot ? createPortal(<div className="route-dock-bar">{bar}</div>, slot) : bar;
 }

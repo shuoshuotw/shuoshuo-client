@@ -1,22 +1,39 @@
 "use client";
 
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { failureMessage } from "@/lib/api/client";
 import { FormError } from "./form";
+import { MorphDialog } from "./morph-dialog";
 
 type Props = {
   label: ReactNode;
   title: string;
-  body: ReactNode;
+  /** Left out when the title asks the whole question */
+  body?: ReactNode;
   confirm: string;
   triggerClassName?: string;
+  /** The trigger pulls toward the pointer like the controls around it */
+  magnet?: boolean;
+  /** A warning (signing out, deleting the account) or a question, shown above the title */
+  tone?: "warning" | "question";
+  /** Runs once the card is back in its button (MorphDialog) */
+  onClosed?: () => void;
+  /** Names the label, so a change of it eases in (MorphDialog) */
+  labelKey?: string;
   /** Throwing keeps the dialog open with the message in it. */
   onConfirm: () => Promise<void>;
 };
 
-/** M-05. A plain dialog in CSS, so a list of rows does not pull HeroUI's Modal in for a yes or no. */
-export function ConfirmButton({ label, title, body, confirm, triggerClassName = "text-button", onConfirm }: Props) {
-  const dialog = useRef<HTMLDialogElement>(null);
+/** A yes or no that grows out of its button like every other dialog (M-04). */
+export function ConfirmButton({ label, title, body, confirm, triggerClassName = "text-button", magnet, tone, onClosed, labelKey, onConfirm }: Props) {
+  return (
+    <MorphDialog label={label} title={title} triggerClassName={triggerClassName} magnet={magnet} tone={tone} onClosed={onClosed} labelKey={labelKey}>
+      {(close) => <Confirm body={body} confirm={confirm} onConfirm={onConfirm} close={close} />}
+    </MorphDialog>
+  );
+}
+
+function Confirm({ body, confirm, onConfirm, close }: Pick<Props, "body" | "confirm" | "onConfirm"> & { close: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +42,7 @@ export function ConfirmButton({ label, title, body, confirm, triggerClassName = 
     setError(null);
     try {
       await onConfirm();
-      dialog.current?.close();
+      close();
     } catch (failure) {
       setError(failureMessage(failure));
     } finally {
@@ -35,24 +52,16 @@ export function ConfirmButton({ label, title, body, confirm, triggerClassName = 
 
   return (
     <>
-      <button type="button" className={triggerClassName} onClick={() => dialog.current?.showModal()}>
-        {label}
-      </button>
-      <dialog ref={dialog} className="plain-dialog" aria-label={title}>
-        <div className="morph-card">
-          <h2 className="dialog-title">{title}</h2>
-          <div>{body}</div>
-          <FormError>{error}</FormError>
-          <div className="dialog-actions">
-            <button type="button" className="button button-primary" disabled={busy} onClick={() => void run()}>
-              {confirm}
-            </button>
-            <button type="button" className="button" onClick={() => dialog.current?.close()}>
-              取消
-            </button>
-          </div>
-        </div>
-      </dialog>
+      {body && <div className="morph-body">{body}</div>}
+      <FormError>{error}</FormError>
+      <div className="dialog-actions">
+        <button type="button" className="button button-danger" disabled={busy} onClick={() => void run()}>
+          {confirm}
+        </button>
+        <button type="button" className="button" onClick={close}>
+          取消
+        </button>
+      </div>
     </>
   );
 }

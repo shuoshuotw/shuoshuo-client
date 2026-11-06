@@ -12,3 +12,5 @@ overrides:
   "@heroui/theme": 2.4.26
   "@heroui/system": 2.4.28
   framer-motion: 12.43.0
+patchedDependencies:
+  '@heroui/toast@2.0.22': patches/@heroui__toast@2.0.22.patch

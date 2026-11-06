@@ -41,6 +41,7 @@ test.describe("component states", () => {
   });
 });
 
+// A closed dialog stays laid out (anime.js's modal recipe measures it at both ends), so "closed" is its card hidden
 test.describe("M-04: the morphing dialog", () => {
   test("MO-05: focus enters, Esc closes, and focus returns to the button", async ({ page }) => {
     await page.goto("/dev/components");
@@ -53,7 +54,7 @@ test.describe("M-04: the morphing dialog", () => {
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe("hidden");
 
     await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
+    await expect(dialog.locator(".morph-card")).toBeHidden();
     await expect(trigger).toBeFocused();
   });
 
@@ -63,11 +64,11 @@ test.describe("M-04: the morphing dialog", () => {
     const dialog = page.getByRole("dialog", { name: "提交這句說說" });
     await trigger.click();
     await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
+    await expect(dialog.locator(".morph-card")).toBeHidden();
     await trigger.click();
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "關閉" }).click();
-    await expect(dialog).toBeHidden();
+    await expect(dialog.locator(".morph-card")).toBeHidden();
     await expect(trigger).toBeVisible();
     expect(await trigger.evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
   });
@@ -77,7 +78,7 @@ test.describe("M-04: the morphing dialog", () => {
     await page.goto("/dev/components");
     const trigger = page.getByRole("button", { name: "開啟對話框" });
     await trigger.click();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "提交這句說說" })).toBeVisible();
     expect(await motionLog(page)).toContainEqual({ id: "M-04", variant: "reduced", phase: "start" });
     await page.keyboard.press("Escape");
     await expect(trigger).toBeFocused();

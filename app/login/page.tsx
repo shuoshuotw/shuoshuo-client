@@ -14,10 +14,6 @@ export default function LoginPage() {
       <Suspense>
         <LoginPanel />
       </Suspense>
-      {/* One sort of type on its paper: the only picture this page needs */}
-      <div className="login-paper" aria-hidden="true">
-        <span className="quote">說</span>
-      </div>
     </PageShell>
   );
 }

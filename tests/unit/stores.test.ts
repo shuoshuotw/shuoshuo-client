@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiFailure, type Quote } from "@/lib/api/client";
 import { useQuoteStageStore } from "@/stores/quote-stage";
 import { useReactionStore } from "@/stores/reactions";
-import { useUiStore } from "@/stores/ui";
 
 const quote = (id: string): Quote => ({ id, content: `內容${id}` }) as Quote;
 
@@ -180,40 +179,5 @@ describe("useReactionStore", () => {
     toggle("q", "favorite", async () => ({ active: true, count: 2 }), () => {});
     await flush();
     expect(state()).toMatchObject({ favorited: true, favorite_count: 2, liked: false, like_count: 1 });
-  });
-});
-
-describe("useUiStore", () => {
-  it("ST-05: restores the layout and survives storage that throws", () => {
-    const listeners: (() => void)[] = [];
-    const media = {
-      matches: false,
-      addEventListener: (_: string, listener: () => void) => listeners.push(listener),
-      removeEventListener: vi.fn(),
-    };
-    vi.stubGlobal("matchMedia", () => media);
-
-    useUiStore.getState().setLayout("vertical");
-    useUiStore.setState({ layout: "horizontal" });
-    const stop = useUiStore.getState().connect();
-    expect(useUiStore.getState().layout).toBe("vertical");
-
-    // ST-06
-    media.matches = true;
-    listeners.forEach((listener) => listener());
-    expect(useUiStore.getState().reducedMotion).toBe(true);
-    stop();
-    expect(media.removeEventListener).toHaveBeenCalledOnce();
-
-    vi.stubGlobal("localStorage", {
-      getItem: () => {
-        throw new Error("denied");
-      },
-      setItem: () => {
-        throw new Error("denied");
-      },
-    });
-    expect(() => useUiStore.getState().setLayout("horizontal")).not.toThrow();
-    expect(() => useUiStore.getState().connect()).not.toThrow();
   });
 });

@@ -29,13 +29,25 @@ export const SANCTION_KINDS: Record<Sanction["kind"], string> = {
 };
 
 export const APPEAL_STATUS: Record<Appeal["status"], string> = {
-  pending: "審理中",
+  pending: "審核中",
   accepted: "已接受",
   rejected: "已駁回",
 };
 
 export function standingText(standing: Standing) {
   if (standing.status === "banned") return "帳號已停權";
-  if (standing.status === "suspended" && standing.suspended_until) return `暫停提交至 ${formatTime(standing.suspended_until)}`;
+  if (standing.status === "suspended") return "暫停提交";
   return "狀態正常";
+}
+
+/** The same suspension as the back office reads it: about the account, not to its owner. */
+export function heldUntilText(standing: Standing) {
+  if (standing.status !== "suspended" || !standing.suspended_until) return null;
+  return `該使用者在 ${formatTime(standing.suspended_until)} 前處於封禁狀態`;
+}
+
+/** The line under a suspension's title: until when, and what it stops (說說 on the cards, 留言 under a quote). */
+export function suspensionText(standing: Standing, what: "說說" | "留言" = "說說") {
+  if (standing.status !== "suspended" || !standing.suspended_until) return null;
+  return `直至 ${formatTime(standing.suspended_until)}，你無法發表新的${what}`;
 }

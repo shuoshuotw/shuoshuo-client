@@ -16,6 +16,20 @@ async function rowsSettled(page: Page) {
 }
 
 test.describe("list pages", () => {
+  test("M-20: one category at a time, and Escape on a quote goes back to the list", async ({ page }) => {
+    await page.goto("/quotes");
+    const bar = page.getByRole("group", { name: "類別" });
+    await bar.getByRole("button", { name: "音樂" }).click();
+    await bar.getByRole("button", { name: "遊戲" }).click();
+    await expect(bar.locator("[aria-pressed='true']")).toHaveText(["遊戲"]);
+    await bar.getByRole("button", { name: "全部" }).click();
+    await page.locator(".quote-row").first().click();
+    await page.waitForURL(/\/q\//);
+    await expect(page.getByRole("button", { name: "返回" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.waitForURL(/\/quotes$/);
+  });
+
   test("/quotes: empty, failed and retried", async ({ page }) => {
     await page.goto("/quotes");
     await expect(page.locator(".quote-row-item")).toHaveCount(8);
@@ -113,6 +127,23 @@ test.describe("detail page", () => {
     await expect(page.locator(".detail-meta")).toContainText("已編輯");
   });
 
+  test("AD-01: the back office is in the personal centre for an admin and a 404 for anyone else", async ({ browser }) => {
+    const admin = await browser.newContext();
+    await signInToMock(admin);
+    const adminPage = await admin.newPage();
+    await adminPage.goto("/admin/cases");
+    await expect(adminPage.getByRole("heading", { level: 1, name: "審核佇列" })).toBeVisible();
+    await expect(adminPage.locator(".me-nav").getByRole("link", { name: "稽核日誌" })).toBeVisible();
+    await admin.close();
+
+    const reader = await browser.newContext();
+    await signInToMock(reader, "00000000-0000-4000-a000-000000000009");
+    const readerPage = await reader.newPage();
+    expect((await readerPage.goto("/admin/cases"))?.status()).toBe(404);
+    await expect(readerPage.getByRole("heading", { level: 1, name: "這一格缺字" })).toBeVisible();
+    await reader.close();
+  });
+
   test("M-24: a dialog on a phone sits at the bottom of the screen", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await signInToMock(page.context());
@@ -129,7 +160,7 @@ test.describe("UI-05: axe", () => {
     test(`public and private pages have no serious findings, ${colorScheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
       await signInToMock(page.context());
-      for (const path of ["/quotes", "/trending", `/q/${QUOTE_ID}`, "/submit", "/me", "/me/api-keys", "/me/security", "/login"]) {
+      for (const path of ["/quotes", "/trending", `/q/${QUOTE_ID}`, "/submit", "/me", "/me/api-keys", "/me/security", "/login", "/terms", "/privacy"]) {
         await page.goto(path);
         await page.waitForTimeout(400);
         const { violations } = await new AxeBuilder({ page }).analyze();

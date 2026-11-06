@@ -1,27 +1,56 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, KeyRound, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { BarredNote } from "@/components/barred-note";
 import { ConfirmButton } from "@/components/confirm-button";
-import { Field, FormError, useFormErrors } from "@/components/form";
+import { ChoiceField, Field, FormError, useFormErrors } from "@/components/form";
+import { MeGate } from "@/components/me-gate";
 import { MorphDialog } from "@/components/morph-dialog";
+import { PageHead } from "@/components/site-chrome";
 import { RetryNote, StateNote } from "@/components/state-note";
-import { SuccessCheck } from "@/components/success-check";
+import { type SendPhase, SendStatus } from "@/components/send-status";
 import { api } from "@/lib/api/browser";
 import { type ApiKey, type ApiKeyScope, type ApiKeyWithSecret, ApiFailure } from "@/lib/api/client";
 import { countChars, formatDate, formatTime } from "@/lib/format";
 import { API_SCOPES } from "@/lib/labels";
-import { notify } from "@/lib/toast";
+import { askToReauth, notify } from "@/lib/toast";
 import { usePagedList } from "@/lib/use-paged-list";
+import { collapse, dropRow } from "@/motion/comment-arrive";
+import { prefersReduced } from "@/motion/log";
+import { useSessionStore } from "@/stores/session";
 
 const DOCS_QUICKSTART = "https://docs.shuoshuotw.xyz/quickstart";
 
+// A banned account's keys are all revoked and it may make none (D-17): the page says why instead
 export default function ApiKeysPage() {
+  return (
+    <MeGate>
+      {(me) =>
+        me.standing.status === "banned" ? (
+          <>
+            <PageHead icon={KeyRound} title="API Key" />
+            <BarredNote standing={me.standing} />
+          </>
+        ) : (
+          <ApiKeys />
+        )
+      }
+    </MeGate>
+  );
+}
+
+function ApiKeys() {
   const { items, setItems, status, reload } = usePagedList<ApiKey>("/v1/me/api-keys");
+  const pathname = usePathname();
   const [revealed, setRevealed] = useState<ApiKeyWithSecret | null>(null);
-  const [reauth, setReauth] = useState(false);
+  const secret = useRef<HTMLElement>(null);
+  const table = useRef<HTMLTableSectionElement>(null);
+  // Keys deleted while their dialog is still open; each leaves the table once the dialog is back in its button
+  const deleted = useRef(new Set<string>());
 
   const created = (key: ApiKeyWithSecret) => {
     setItems((current) => [key, ...current.filter((item) => item.id !== key.id)]);
@@ -30,17 +59,27 @@ export default function ApiKeysPage() {
 
   const needsReauth = (failure: unknown) => {
     if (failure instanceof ApiFailure && failure.code === "REAUTH_REQUIRED") {
-      setReauth(true);
+      askToReauth(pathname);
       return true;
     }
     return false;
   };
 
+  // The shown-once panel folds away before it goes
+  const hideSecret = () => void collapse(secret.current).then(() => setRevealed(null));
+
   const remove = async (id: string) => {
     await api(`/v1/me/api-keys/${id}`, { method: "DELETE" });
-    setItems((current) => current.filter((item) => item.id !== id));
-    if (revealed?.id === id) setRevealed(null);
+    deleted.current.add(id);
     void notify("已刪除 API Key");
+  };
+
+  const leave = (id: string) => {
+    if (!deleted.current.delete(id)) return;
+    if (secret.current?.dataset.keyId === id) hideSecret();
+    void dropRow(table.current?.querySelector<HTMLElement>(`:scope > [data-id="${id}"]`) ?? null, () =>
+      flushSync(() => setItems((current) => current.filter((item) => item.id !== id))),
+    );
   };
 
   const regenerate = async (id: string) => {
@@ -54,13 +93,22 @@ export default function ApiKeysPage() {
   return (
     <>
       <div className="me-head">
-        <h1 className="section-title">API Key</h1>
-        <MorphDialog label="建立 API Key" title="建立 API Key" triggerClassName="button button-primary">
+        <PageHead icon={KeyRound} title="API Key" />
+        <MorphDialog
+          label={
+            <>
+              <Plus aria-hidden="true" />
+              建立 API Key
+            </>
+          }
+          title="建立 API Key"
+          triggerClassName="button button-primary"
+          magnet
+        >
           {(close) => <CreateKeyForm close={close} onCreated={created} onReauth={needsReauth} />}
         </MorphDialog>
       </div>
-      {reauth && <ReauthNote />}
-      {revealed && <SecretReveal apiKey={revealed} onDismiss={() => setRevealed(null)} />}
+      {revealed && <SecretReveal ref={secret} apiKey={revealed} onDismiss={hideSecret} />}
       {status === "loading" ? (
         <div className="table-scroll" aria-busy="true">
           <table className="table">
@@ -87,34 +135,40 @@ export default function ApiKeysPage() {
         </StateNote>
       ) : (
         <div className="table-scroll" tabIndex={0} role="region" aria-label="API Key 清單">
-          <table className="table">
+          {/* On a phone each key stands as a card of its own, every value under its column's name */}
+          <table className="table table-stack table-keys">
             <thead>
               <tr>
-                <th scope="col">名稱</th>
+                <th scope="col" className="table-roomy">名稱</th>
                 <th scope="col">前綴</th>
-                <th scope="col">權限</th>
-                <th scope="col">最後使用</th>
-                <th scope="col">建立於</th>
+                <th scope="col" className="table-roomy">權限</th>
+                <th scope="col" className="table-nowrap">到期</th>
+                <th scope="col" className="table-nowrap">最後使用</th>
+                <th scope="col" className="table-nowrap">建立於</th>
                 <th scope="col">操作</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={table}>
               {items.map((key) => (
-                <tr key={key.id}>
-                  <td>{key.name}</td>
-                  <td>
+                <tr key={key.id} data-id={key.id}>
+                  <td data-label="名稱" className="table-lead table-roomy">
+                    {key.name}
+                  </td>
+                  <td data-label="前綴">
                     <code>{key.key_prefix}</code>
                   </td>
-                  <td>{key.scopes.map((scope) => API_SCOPES[scope]).join("、")}</td>
-                  <td>{key.last_used_at ? formatTime(key.last_used_at) : "尚未使用"}</td>
-                  <td>{formatDate(key.created_at)}</td>
-                  <td>
+                  <td data-label="權限" className="table-roomy">{key.scopes.map((scope) => API_SCOPES[scope]).join("、")}</td>
+                  <td data-label="到期" className="table-nowrap">{expiry(key.expires_at)}</td>
+                  <td data-label="最後使用">{key.last_used_at ? <DayAndTime at={key.last_used_at} /> : <span className="nowrap">尚未使用</span>}</td>
+                  <td data-label="建立於" className="table-nowrap">{formatDate(key.created_at)}</td>
+                  <td data-label="操作">
                     <span className="table-actions">
                       <ConfirmButton
                         label="重新產生"
                         title={`重新產生「${key.name}」`}
-                        body="舊金鑰會立刻失效，使用它的程式要換成新金鑰。"
+                        body="重新產生此金鑰會導致舊金鑰立即失效，確定要繼續嗎？"
                         confirm="重新產生"
+                        tone="warning"
                         onConfirm={() => regenerate(key.id)}
                       />
                       <ConfirmButton
@@ -122,7 +176,9 @@ export default function ApiKeysPage() {
                         title={`刪除「${key.name}」`}
                         body="刪除後無法復原，使用它的程式會立刻失敗。"
                         confirm="確定刪除"
+                        tone="warning"
                         onConfirm={() => remove(key.id)}
+                        onClosed={() => leave(key.id)}
                       />
                     </span>
                   </td>
@@ -136,26 +192,48 @@ export default function ApiKeysPage() {
   );
 }
 
-function ReauthNote() {
-  const pathname = usePathname();
+/** A moment as its day and its time, which may go on two lines but never break inside either. */
+function DayAndTime({ at }: { at: string }) {
+  const [day, ...time] = formatTime(at).split(" ");
   return (
-    <p className="banner" role="alert">
-      這個操作需要你在 10 分鐘內驗證過身分。
-      <Link className="text-link" href={`/login?reauth=1&next=${encodeURIComponent(pathname)}`}>
-        重新驗證
-      </Link>
-    </p>
+    <>
+      <span className="nowrap">{day}</span> <span className="nowrap">{time.join(" ")}</span>
+    </>
   );
 }
 
-function SecretReveal({ apiKey, onDismiss }: { apiKey: ApiKeyWithSecret; onDismiss: () => void }) {
+/** When a key stops working: its day, gone by, or never. */
+function expiry(at: string | null) {
+  if (!at) return "永久";
+  return Date.parse(at) <= Date.now() ? "已過期" : formatDate(at);
+}
+
+// §8.8.2
+const LIFETIMES = [
+  ["30", "30 天"],
+  ["60", "60 天"],
+  ["90", "90 天"],
+  ["180", "180 天"],
+  ["360", "360 天"],
+] as const;
+type Lifetime = (typeof LIFETIMES)[number][0] | "forever";
+const WITH_FOREVER: readonly (readonly [Lifetime, string])[] = [...LIFETIMES, ["forever", "永久"]];
+
+/**
+ * The new key, shown once. The panel drops in; its disc spins a moment and then turns into a green tick (M-08, the
+ * spinner to check), and the key sits in a field with its copy button beside it.
+ */
+function SecretReveal({ ref: panel, apiKey, onDismiss }: { ref: RefObject<HTMLElement | null>; apiKey: ApiKeyWithSecret; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
-  const panel = useRef<HTMLElement>(null);
+  const [phase, setPhase] = useState<SendPhase>("sending");
 
   // The one thing on the page that matters now, and the dialog that opened it has just closed
   useEffect(() => {
     panel.current?.focus();
-  }, [apiKey.secret]);
+    setPhase("sending");
+    const timer = setTimeout(() => setPhase("done"), prefersReduced() ? 0 : 650);
+    return () => clearTimeout(timer);
+  }, [apiKey.secret, panel]);
 
   const copy = async () => {
     await navigator.clipboard.writeText(apiKey.secret);
@@ -164,24 +242,24 @@ function SecretReveal({ apiKey, onDismiss }: { apiKey: ApiKeyWithSecret; onDismi
   };
 
   return (
-    <section className="secret" ref={panel} tabIndex={-1} aria-label={`「${apiKey.name}」的金鑰`}>
-      <SuccessCheck />
+    <section key={apiKey.secret} className="secret" data-phase={phase} data-key-id={apiKey.id} ref={panel} tabIndex={-1} aria-label={`「${apiKey.name}」的金鑰`}>
+      <SendStatus phase={phase} />
       <div className="secret-body">
-        <h2 className="block-title">「{apiKey.name}」的金鑰只會顯示這一次</h2>
-        <p>離開這頁就再也看不到了，請現在存到安全的地方。</p>
-        <code className="secret-value" data-testid="api-key-secret">
-          {apiKey.secret}
-        </code>
-        <div className="dialog-actions">
-          <button type="button" className="button button-primary" onClick={() => void copy()}>
-            <span className="swap" data-swapped={copied} aria-hidden="true">
+        <h2 className="secret-title">請妥善保存您的金鑰</h2>
+        <div className="secret-field">
+          <code className="secret-value" data-testid="api-key-secret">
+            {apiKey.secret}
+          </code>
+          <button type="button" className="button button-primary secret-copy" data-magnet aria-label={copied ? "已複製" : "複製金鑰"} onClick={() => void copy()}>
+            <span className="icon-swap" data-swapped={copied} aria-hidden="true">
               <Copy />
-              <Check />
+              <Check className="check-draw" />
             </span>
-            {copied ? "已複製" : "複製金鑰"}
           </button>
-          <button type="button" className="button" onClick={onDismiss}>
-            我已存好
+        </div>
+        <div className="dialog-actions">
+          <button type="button" className="button" data-magnet onClick={onDismiss}>
+            我已妥善儲存
           </button>
         </div>
       </div>
@@ -194,6 +272,8 @@ type CreateProps = { close: () => void; onCreated: (key: ApiKeyWithSecret) => vo
 function CreateKeyForm({ close, onCreated, onReauth }: CreateProps) {
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState<ApiKeyScope[]>(["quotes:read"]);
+  const [lifetime, setLifetime] = useState<Lifetime>("90");
+  const forever = useSessionStore((state) => state.me?.allow_permanent_api_keys ?? false);
   const [busy, setBusy] = useState(false);
   const { form, errors, formError, fail, failWith, clear } = useFormErrors();
 
@@ -207,9 +287,10 @@ function CreateKeyForm({ close, onCreated, onReauth }: CreateProps) {
     setBusy(true);
     clear();
     try {
-      onCreated(await api<ApiKeyWithSecret>("/v1/me/api-keys", { method: "POST", body: { name: name.trim(), scopes } }));
+      onCreated(await api<ApiKeyWithSecret>("/v1/me/api-keys", { method: "POST", body: { name: name.trim(), scopes, expires_in_days: lifetime === "forever" ? null : Number(lifetime) } }));
       setName("");
       setScopes(["quotes:read"]);
+      setLifetime("90");
       close();
     } catch (failure) {
       if (onReauth(failure)) close();
@@ -221,7 +302,7 @@ function CreateKeyForm({ close, onCreated, onReauth }: CreateProps) {
 
   return (
     <form className="form" ref={form} onSubmit={(event) => void submit(event)} noValidate>
-      <Field label="名稱" error={errors.name} hint="之後認得出來的名字，例如「我的部落格」">
+      <Field label="名稱" error={errors.name} hint="為你的 API Key 取一個別名">
         {(props) => <input {...props} className="input" value={name} onChange={(event) => setName(event.target.value)} />}
       </Field>
       <fieldset className="field">
@@ -239,6 +320,22 @@ function CreateKeyForm({ close, onCreated, onReauth }: CreateProps) {
           </label>
         ))}
       </fieldset>
+      <ChoiceField<Lifetime>
+        label="有效期限"
+        value={lifetime}
+        options={forever ? WITH_FOREVER : LIFETIMES}
+        onChange={setLifetime}
+      />
+      {/* Beside the select, not its description: HeroUI drops an outside label into the box when it has one */}
+      {!forever && (
+        <p className="field-hint">
+          要建立不會過期的金鑰，先到
+          <Link className="text-link" href="/me/security">
+            安全設置
+          </Link>
+          允許永久 API Key。
+        </p>
+      )}
       <FormError>{formError}</FormError>
       <div className="dialog-actions">
         <button type="submit" className="button button-primary" disabled={busy}>

@@ -1,7 +1,8 @@
+import { PenLine, Quote as QuoteIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { LinkButton } from "@/components/link-button";
 import { QuoteList } from "@/components/quote-list";
-import { PageShell } from "@/components/site-chrome";
+import { PageHead, PageShell } from "@/components/site-chrome";
 import { StateNote } from "@/components/state-note";
 import type { Quote } from "@/lib/api/client";
 import { getFirstPage } from "@/lib/api/server";
@@ -15,15 +16,15 @@ export default async function QuotesPage() {
   const initial = await getFirstPage<Quote>("/v1/quotes?limit=20");
   return (
     <PageShell className="list-page">
-      <h1 className="section-title">所有說說</h1>
+      <PageHead icon={QuoteIcon} title="所有說說" />
       <QuoteList
         path="/v1/quotes"
         initial={initial}
         empty={
           <StateNote title="此類別還沒有說說">
-            <Link className="button button-primary" href="/submit">
+            <LinkButton href="/submit" color="primary" radius="full" data-magnet startContent={<PenLine aria-hidden="true" size={18} />}>
               提交第一句
-            </Link>
+            </LinkButton>
           </StateNote>
         }
       />

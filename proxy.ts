@@ -27,7 +27,27 @@ export async function proxy(request: NextRequest) {
     login.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(login);
   }
+  // To anyone but an admin the back office is not there: the site's own 404, rendered whole. A notFound() thrown in its
+  // layout instead made React rebuild <html>, dropping the theme and signed-in classes theme.js had set on it.
+  if (pathname.startsWith("/admin") && !(await isAdmin(supabase))) {
+    const missing = NextResponse.rewrite(new URL("/404", request.url));
+    for (const cookie of response.cookies.getAll()) missing.cookies.set(cookie);
+    return missing;
+  }
   return response;
+}
+
+// Roles live in Core, which verifies the token (§9.7); it refuses every admin call on its own anyway
+async function isAdmin(supabase: ReturnType<typeof createServerClient>) {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) return false;
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"}/v1/me`, {
+    headers: { Authorization: `Bearer ${data.session.access_token}` },
+    cache: "no-store",
+  }).catch(() => null);
+  if (!response?.ok) return false;
+  const body = (await response.json()) as { data?: { roles?: string[] } };
+  return body.data?.roles?.includes("admin") === true;
 }
 
 // Public pages must stay out: a Set-Cookie would make them uncacheable (SPEC §10.5)

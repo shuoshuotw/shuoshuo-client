@@ -53,5 +53,5 @@ export function usePagedList<T>(path: string, initial: Page<T> | null = null) {
     }
   }, [cursor, path, status]);
 
-  return { items, setItems, status, hasMore: cursor !== null, loadMore, reload };
+  return { items, setItems, cursor, status, hasMore: cursor !== null, loadMore, reload };
 }

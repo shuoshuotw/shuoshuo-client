@@ -10,6 +10,7 @@ async function open(page: Page, path = "/") {
 
 const quoteText = (page: Page) => page.getByTestId("quote-text");
 const motionLog = (page: Page) => page.evaluate(() => window.__motionLog ?? []);
+const toolbar = (page: Page) => page.getByRole("toolbar", { name: "這句說說" });
 
 async function pickingDone(page: Page, count = 1) {
   await expect.poll(async () => (await motionLog(page)).filter((entry) => entry.id === "M-01" && entry.phase === "end").length).toBeGreaterThanOrEqual(count);
@@ -17,16 +18,16 @@ async function pickingDone(page: Page, count = 1) {
 
 async function expectAllCharsSettled(page: Page) {
   const chars = await page.locator("[data-char]").evaluateAll((elements) =>
-    elements.map((element) => ({ opacity: getComputedStyle(element).opacity, transform: (element as HTMLElement).style.transform })),
+    elements.map((element) => ({ opacity: getComputedStyle(element).opacity, transform: (element as HTMLElement).style.transform, filter: (element as HTMLElement).style.filter })),
   );
   expect(chars.length).toBeGreaterThan(0);
-  for (const char of chars) expect(char).toEqual({ opacity: "1", transform: "" });
+  for (const char of chars) expect(char).toEqual({ opacity: "1", transform: "", filter: "" });
 }
 
 async function serve(page: Page, content: string, key = "original") {
   const body = JSON.stringify({
     data: {
-      id: "00000000-0000-4000-8000-0000000000aa",
+      id: `00000000-0000-4000-8000-${String(Math.floor(Math.random() * 1e12)).padStart(12, "0")}`,
       content,
       length: Array.from(content).length,
       category: { key, name: "原創" },
@@ -47,7 +48,7 @@ async function serve(page: Page, content: string, key = "original") {
 
 async function drawInto(page: Page, content: string, key?: string) {
   await serve(page, content, key);
-  await page.getByRole("button", { name: "再抽一句" }).click();
+  await toolbar(page).getByRole("button", { name: "換一句" }).click();
   await expect(quoteText(page).locator(".sr-only")).toHaveText(content);
 }
 
@@ -67,21 +68,29 @@ test.describe("copy and type", () => {
     expect(style.synthesis).toBe("none");
   });
 
-  test("UI-11: the slogan appears once, in the h1", async ({ page }) => {
+  // UI-11, changed 2026-11-04: the slogan lives in the footer of every page, once
+  test("UI-11: the slogan appears once, in the footer", async ({ page }) => {
     await open(page);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("說說，讓文字不僅止於說說");
     expect((await page.locator("body").innerText()).split("讓文字不僅止於說說").length - 1).toBe(1);
+    await expect(page.locator(".site-footer .footer-slogan")).toContainText("讓文字不僅止於說說");
   });
 
-  test("UI-11: other pages carry no slogan", async ({ page }) => {
+  test("UI-11: other pages carry it once too, in the footer", async ({ page }) => {
     await page.goto("/no-such-page");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("這一格缺字");
-    expect(await page.locator("body").innerText()).not.toContain("讓文字不僅止於說說");
+    expect((await page.locator("body").innerText()).split("讓文字不僅止於說說").length - 1).toBe(1);
+    await expect(page.locator(".site-footer .footer-slogan")).toContainText("讓文字不僅止於說說");
   });
 
   test("UI-12: the interface says 說說, never 語錄", async ({ page }) => {
     await open(page);
     expect(await page.locator("body").innerText()).not.toContain("語錄");
+  });
+
+  test("the credit reads 提交者‧出處 under the quote", async ({ page }) => {
+    await open(page);
+    await drawInto(page, "抽到的一句");
+    await expect(page.locator(".stage-quote .credit")).toHaveText(/^—— 小明‧(，出處：)?測試來源$/);
   });
 
   const LENGTHS = [2, 20, 21, 60, 61, 100];
@@ -92,14 +101,17 @@ test.describe("copy and type", () => {
       await open(page);
       for (const length of LENGTHS) {
         await drawInto(page, "測".repeat(length));
-        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        const overflow = await page.evaluate(() => {
+          const scroller = document.getElementById("app-scroll")!;
+          return Math.max(scroller.scrollWidth - scroller.clientWidth, document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        });
         expect(overflow, `${length} characters`).toBeLessThanOrEqual(0);
         const fits = await quoteText(page).evaluate((element) => {
-          const sheet = element.closest(".sheet")!.getBoundingClientRect();
+          const stage = element.closest(".stage")!.getBoundingClientRect();
           const text = element.getBoundingClientRect();
-          return text.left >= sheet.left && text.right <= sheet.right && text.bottom <= sheet.bottom + 1;
+          return text.left >= stage.left && text.right <= stage.right;
         });
-        expect(fits, `${length} characters stay on the paper`).toBe(true);
+        expect(fits, `${length} characters stay on the stage`).toBe(true);
       }
     });
   }
@@ -130,85 +142,62 @@ test.describe("copy and type", () => {
       await expect(quoteText(page)).toHaveClass(new RegExp(size));
     }
   });
-
-  test("UI-04: vertical setting holds emoji, Latin and punctuation without overflowing", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await open(page);
-    await drawInto(page, "Life is 一首歌🎵，我們都在唱。你呢？");
-    await page.getByTestId("layout-toggle").click();
-    await expect(quoteText(page)).toHaveAttribute("data-layout", "vertical");
-    const fits = await quoteText(page).evaluate((element) => {
-      const sheet = element.closest(".sheet")!.getBoundingClientRect();
-      const text = element.getBoundingClientRect();
-      return getComputedStyle(element).writingMode === "vertical-rl" && text.left >= sheet.left && text.bottom <= sheet.bottom + 1;
-    });
-    expect(fits).toBe(true);
-  });
-
-  test("a phone refuses vertical setting for a long quote", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 800 });
-    await open(page);
-    await drawInto(page, "測".repeat(41));
-    await page.getByTestId("layout-toggle").click();
-    await expect(quoteText(page)).toHaveAttribute("data-layout", "horizontal");
-  });
 });
 
 test.describe("the stage", () => {
-  test("draws, goes back, and shows history", async ({ page }) => {
+  test("draws another, and offers no way back", async ({ page }) => {
     await open(page);
     await pickingDone(page);
-    const back = page.getByRole("button", { name: "上一句" });
-    await expect(back).toBeDisabled();
-    const first = await quoteText(page).locator(".sr-only").innerText();
+    // The brackets stay mounted and glide to the new sentence instead of being rebuilt
+    const bracket = await page.locator(".stage .bracket-open").elementHandle();
     await drawInto(page, "抽到的下一句");
-    await back.click();
-    await expect(quoteText(page).locator(".sr-only")).toHaveText(first);
+    expect(await bracket!.evaluate((element) => element.isConnected)).toBe(true);
+    await expect(toolbar(page).getByRole("button", { name: "上一句" })).toHaveCount(0);
+    await expect(toolbar(page).getByRole("button", { name: /^留言/ })).toBeVisible();
   });
 
-  test("M-20 and the curl line follow the type case; the paper follows the quote", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+  test("copying shows a check in place of the icon", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await open(page);
-    const cell = page.getByRole("button", { name: "詩詞" });
-    await cell.click();
-    await expect(cell).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator(".terminal code").first()).toContainText("categories=poetry");
-    await expect(quoteText(page).locator(".sr-only")).toHaveText("行到水窮處，坐看雲起時。");
-    await expect.poll(() => page.locator(".sheet").evaluate((element) => getComputedStyle(element).backgroundColor)).toBe("rgb(201, 207, 201)");
-    await expect(page.getByTestId("curl-output")).toHaveText("行到水窮處，坐看雲起時。");
-    await expect.poll(() => cell.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe("rgb(201, 207, 201)");
+    await drawInto(page, "複製這一句");
+    await toolbar(page).getByRole("button", { name: "複製這句" }).click();
+    await expect(toolbar(page).getByRole("button", { name: "已複製" })).toHaveAttribute("data-copied", "true");
+    // The sentence alone, without its credit
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("複製這一句");
   });
 
-  test("shows the empty state and clears the filter from it", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+  test("the light takes the quote's category", async ({ page }) => {
     await open(page);
-    await page.getByRole("button", { name: "其他" }).click();
-    await expect(page.getByText("這個字盤是空的")).toBeVisible();
-    await page.getByRole("button", { name: "清除篩選" }).click();
-    await expect(quoteText(page)).toBeVisible();
-    await expect(page.getByRole("button", { name: "全部" })).toHaveAttribute("aria-pressed", "true");
+    await drawInto(page, "一句詩", "poetry");
+    await expect.poll(() => page.locator(".stage").evaluate((element) => getComputedStyle(element).getPropertyValue("--glow").trim())).toBe("rgb(201, 207, 201)");
+  });
+
+  test("an empty pool says so and points to submitting", async ({ page }) => {
+    await open(page);
+    await page.route(`${CORE}/v1/quotes/random*`, (route) =>
+      route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ error: { code: "NO_QUOTE_MATCHED", status: 404, message: "沒有符合條件的說說" } }),
+      }),
+    );
+    await toolbar(page).getByRole("button", { name: "換一句" }).click();
+    await expect(page.getByText("這裡還沒有任何說說")).toBeVisible();
+    await expect(page.getByRole("link", { name: "提交第一句" })).toHaveAttribute("href", "/submit");
   });
 
   test("shows the error state and recovers from it", async ({ page }) => {
     await open(page);
     await page.route(`${CORE}/v1/quotes/random*`, (route) => route.abort());
-    await page.getByRole("button", { name: "再抽一句" }).click();
+    await toolbar(page).getByRole("button", { name: "換一句" }).click();
     await expect(page.getByText("說說沒有載入成功")).toBeVisible();
     await page.unroute(`${CORE}/v1/quotes/random*`);
     await page.getByRole("button", { name: "重試" }).click();
     await expect(quoteText(page)).toBeVisible();
   });
 
-  test("ST-05: filter and layout survive a reload, and storage failures do not break the page", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await open(page);
-    await page.getByRole("button", { name: "詩詞" }).click();
-    await page.getByTestId("layout-toggle").click();
-    await expect(quoteText(page)).toHaveAttribute("data-layout", "vertical");
-    await page.reload();
-    await expect(page.getByRole("button", { name: "詩詞" })).toHaveAttribute("aria-pressed", "true");
-    await expect(quoteText(page)).toHaveAttribute("data-layout", "vertical");
-
+  test("ST-05: storage failures do not break the page", async ({ page }) => {
     await page.addInitScript(() => {
       for (const area of ["localStorage", "sessionStorage"]) {
         Object.defineProperty(window, area, {
@@ -218,7 +207,7 @@ test.describe("the stage", () => {
         });
       }
     });
-    await page.reload();
+    await open(page);
     await expect(quoteText(page)).toBeVisible();
   });
 
@@ -234,8 +223,133 @@ test.describe("the stage", () => {
 
   test("an anonymous like goes to sign-in", async ({ page }) => {
     await open(page);
-    await page.getByRole("button", { name: /^按讚/ }).click();
+    await toolbar(page).getByRole("button", { name: /^按讚/ }).click();
     await expect(page).toHaveURL(/\/login\?next=/);
+  });
+
+  test("a phone gets the dock: the pages and the account, then on the way down the pages fold into a menu and the toolbar comes down", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await open(page);
+    await expect(page.locator(".site-header")).toBeHidden();
+    const dock = page.locator(".dock");
+    await expect(dock.getByRole("toolbar", { name: "這句說說" })).toBeVisible();
+    await expect(dock.getByRole("navigation", { name: "主要導覽" }).getByRole("link", { name: "首頁" })).toHaveAttribute("aria-current", "page");
+    await expect(dock.getByRole("link", { name: "登入" })).toBeVisible();
+    await expect(dock.getByRole("button", { name: "開啟選單" })).toBeHidden();
+
+    await page.locator("#app-scroll").evaluate(async (element) => {
+      element.scrollTop = 200;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      element.scrollTop = 500;
+    });
+    await expect(dock).toHaveAttribute("data-compact", "true");
+    await expect(dock.locator(".dock-tab").first()).toHaveCSS("opacity", "0");
+    await expect(dock.locator(".dock-tabs")).toHaveJSProperty("offsetWidth", 56);
+
+    // The button grows into the menu (a disclosure), and folds back on Escape or once a page is chosen
+    const morph = dock.locator(".dock-morph");
+    await dock.getByRole("button", { name: "開啟選單" }).click();
+    await expect(dock.getByRole("button", { name: "關閉選單" })).toHaveAttribute("aria-expanded", "true");
+    const menu = dock.getByRole("navigation", { name: "選單" });
+    await expect(menu.getByRole("link", { name: "近期熱門" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(morph).toHaveAttribute("data-open", "false");
+    await dock.getByRole("button", { name: "開啟選單" }).click();
+    await menu.getByRole("link", { name: "近期熱門" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("近期熱門");
+    await expect(morph).toHaveAttribute("data-open", "false");
+  });
+
+  test("the header's links are links, and the current page is marked", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, "/trending");
+    const nav = page.getByRole("navigation", { name: "主要導覽" });
+    for (const name of ["說說", "近期熱門", "提交", "API 文件"]) await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "近期熱門", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.locator(".site-nav")).toHaveAttribute("data-pill", "on");
+  });
+});
+
+test.describe("the invitation", () => {
+  test("keeps what is written there for the submit page", async ({ page }) => {
+    await open(page);
+    await expect(page.getByRole("heading", { name: "現在，換你說說" })).toBeVisible();
+    await page.getByRole("textbox", { name: "你的那一句" }).fill("天黑了，就把燈打開。");
+    await expect(page.locator(".composer-count")).toHaveText("10 / 100");
+    await page.getByRole("link", { name: "繼續完成" }).click();
+    await expect(page).toHaveURL(/\/(submit|login)/);
+    expect(await page.evaluate(() => sessionStorage.getItem("shuoshuo:draft"))).toBe("天黑了，就把燈打開。");
+  });
+});
+
+test.describe("latest quotes", () => {
+  const front = (page: Page) => page.locator('.fan-card[data-front="true"]');
+
+  test("the hand steps with the arrows, the dots, a throw, a carried card and a click on a side card", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page);
+    const latest = page.locator(".latest");
+    await latest.scrollIntoViewIfNeeded();
+    await expect(page.locator(".fan")).toHaveAttribute("data-open", "true");
+    await latest.getByRole("button", { name: "暫停輪播" }).click();
+    await expect(latest.getByRole("button", { name: "繼續輪播" })).toBeVisible();
+
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 1 句/);
+    await latest.getByRole("button", { name: "下一張" }).click();
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 2 句/);
+    await latest.getByRole("button", { name: "第 4 句", exact: true }).click();
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 4 句/);
+    await expect(latest.getByRole("button", { name: "第 4 句", exact: true })).toHaveAttribute("aria-current", "true");
+
+    // The front card follows the pointer anywhere; thrown away, it goes to the back and its neighbour steps forward.
+    // The hand settles first, so the card under the pointer is the front one
+    await page.waitForTimeout(900);
+    const box = (await page.locator(".fan").boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 - 100, box.y + box.height / 2 + 40, { steps: 6 });
+    await expect(front(page)).toHaveAttribute("data-held", "true");
+    expect(await front(page).evaluate((card) => [card.style.getPropertyValue("--drag-x"), card.style.getPropertyValue("--drag-y")])).toEqual(["-100px", "40px"]);
+    await page.mouse.move(box.x + box.width / 2 - 160, box.y + box.height / 2 + 40, { steps: 4 });
+    await page.mouse.up();
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 5 句/);
+    await expect(page).toHaveURL("/");
+
+    // A card carried from the side comes to the front when it is let go
+    await page.waitForTimeout(900);
+    const right = (await page.locator(".fan-card").nth(5).boundingBox())!;
+    await page.mouse.move(right.x + right.width - 30, right.y + right.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(right.x + right.width - 90, right.y + right.height / 2 - 60, { steps: 6 });
+    await page.mouse.up();
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 6 句/);
+
+    // Card 4 now sits two places left of the front; its left edge is clear of the cards above it
+    await page.waitForTimeout(900);
+    const side = (await page.locator(".fan-card").nth(3).boundingBox())!;
+    await page.mouse.click(side.x + 40, side.y + side.height / 2);
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 4 句/);
+  });
+
+  test("only the front card can be reached, and it opens its quote", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page);
+    await expect(page.locator(".fan-card[inert]")).toHaveCount((await page.locator(".fan-card").count()) - 1);
+    await expect(front(page).getByRole("link", { name: "讀這句" })).toHaveAttribute("href", /^\/q\//);
+  });
+
+  test("it swaps on its own, and stops while the pointer is over it", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.clock.install();
+    await open(page);
+    await page.locator(".latest").scrollIntoViewIfNeeded();
+    await expect(page.locator(".fan")).toHaveAttribute("data-open", "true");
+    await page.mouse.move(5, 5);
+    await page.clock.runFor(4600);
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 2 句/);
+    await page.locator(".fan").hover();
+    await page.clock.runFor(9500);
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 2 句/);
   });
 });
 
@@ -245,16 +359,16 @@ test.describe("motion", () => {
     await pickingDone(page);
     expect(await motionLog(page)).toContainEqual({ id: "M-01", variant: "full", phase: "start" });
     await expectAllCharsSettled(page);
-    await page.getByRole("button", { name: "再抽一句" }).click();
+    await toolbar(page).getByRole("button", { name: "換一句" }).click();
     await pickingDone(page, 2);
-    await expect.poll(() => page.locator("[data-char]").first().evaluate((element) => (element as HTMLElement).style.transform)).toBe("");
     await expectAllCharsSettled(page);
+    await expect(page.locator(".stage .caret")).toHaveCount(0, { timeout: 3000 });
   });
 
   test("MO-02: five quick draws end on the last quote, readable", async ({ page }) => {
     await open(page);
     await pickingDone(page);
-    const button = page.getByRole("button", { name: "再抽一句" });
+    const button = toolbar(page).getByRole("button", { name: "換一句" });
     for (let i = 0; i < 5; i += 1) {
       await expect(button).toBeEnabled();
       await button.click();
@@ -279,7 +393,7 @@ test.describe("motion", () => {
     await expect(quoteText(page).locator(".sr-only")).not.toBeEmpty();
   });
 
-  test("MO-04: reduced motion keeps everything visible and uses the reduced variants", async ({ page }) => {
+  test("MO-04: reduced motion keeps everything visible, uses the reduced variants and never swaps on its own", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1440, height: 900 });
     await open(page);
@@ -288,58 +402,8 @@ test.describe("motion", () => {
     expect(log).toContainEqual({ id: "M-01", variant: "reduced", phase: "start" });
     expect(log.filter((entry) => entry.variant === "full")).toEqual([]);
     await expectAllCharsSettled(page);
-
-    await page.getByTestId("layout-toggle").click();
-    await expect(quoteText(page)).toHaveAttribute("data-layout", "vertical");
-    expect(await motionLog(page)).toContainEqual({ id: "M-02", variant: "reduced", phase: "start" });
-
-    const durations = await page.evaluate(() =>
-      [".sheet", ".button", ".case-cell", ".tool"].map((selector) => getComputedStyle(document.querySelector(selector)!).transitionDuration),
-    );
-    for (const duration of durations) expect(duration.split(",").every((part) => parseFloat(part) === 0)).toBe(true);
-
-    await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
-    for (const part of await page.locator("[data-reveal]").all()) {
-      expect(await part.evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
-    }
-    await expect(page.locator(".spines")).not.toHaveAttribute("data-folding", "true");
-  });
-
-  test("M-02: flipping the layout leaves the type settled", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await open(page);
-    await pickingDone(page);
-    await page.getByTestId("layout-toggle").click();
-    await expect.poll(async () => (await motionLog(page)).some((entry) => entry.id === "M-02" && entry.phase === "end")).toBe(true);
-    await expect(quoteText(page)).toHaveAttribute("data-layout", "vertical");
-    await expect(page.locator("[data-char]").first()).toHaveJSProperty("style.transform", "");
-  });
-
-  test("M-10: sections rise on the way down and end visible", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await open(page);
-    await page.getByRole("heading", { name: "提交一句說說" }).scrollIntoViewIfNeeded();
-    await expect.poll(() => page.locator(".invite-paper").evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
-    expect(await motionLog(page)).toContainEqual({ id: "M-10", variant: "full", phase: "start" });
-  });
-
-  test("the list folds into spines on desktop, and a spine brings its card back", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await open(page);
-    const section = page.locator(".spines");
-    await expect(section).toHaveAttribute("data-folding", "true");
-    const scrollTop = await section.evaluate((element) => element.getBoundingClientRect().top + scrollY);
-    await page.evaluate((top) => scrollTo(0, top + innerHeight * 2), scrollTop);
-    const last = page.locator("[data-spine-card]").last();
-    await expect.poll(() => last.evaluate((element) => getComputedStyle(element).clipPath)).toContain("inset");
-    await expect(last.getByRole("link", { name: "讀這句" })).toBeVisible();
-  });
-
-  test("the list stays a plain stack on a phone", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 800 });
-    await open(page);
-    await expect(page.locator(".spines")).not.toHaveAttribute("data-folding", "true");
-    expect(await page.locator("[data-spine-card]").first().evaluate((element) => getComputedStyle(element).position)).toBe("static");
+    await expect(page.locator(".latest").getByRole("button", { name: "繼續輪播" })).toBeVisible();
+    expect(await page.locator(".fan-card").first().evaluate((element) => getComputedStyle(element).transitionProperty)).not.toContain("transform");
   });
 
   test("MO-07: leaving mid-animation logs no errors", async ({ page }) => {
@@ -349,8 +413,8 @@ test.describe("motion", () => {
       if (message.type() === "error" && !message.text().includes("404")) errors.push(message.text());
     });
     await open(page);
-    await page.getByRole("button", { name: "再抽一句" }).click();
-    await page.getByRole("link", { name: "近期熱門", exact: true }).click();
+    await toolbar(page).getByRole("button", { name: "換一句" }).click();
+    await page.getByRole("navigation", { name: "主要導覽" }).getByRole("link", { name: "近期熱門", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("近期熱門");
     expect(errors).toEqual([]);
   });
@@ -371,15 +435,15 @@ test.describe("motion", () => {
   });
 });
 
-test("MO-09: a blank sheet is exactly the size of the sheet it replaces", async ({ page }) => {
+test("MO-09: the stage keeps its size when the quote gives way to a note", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page);
   await pickingDone(page);
-  const loaded = await page.locator(".sheet").boundingBox();
+  const loaded = await page.locator(".stage").boundingBox();
   await page.route(`${CORE}/v1/quotes/random*`, (route) => route.abort());
-  await page.getByRole("button", { name: "再抽一句" }).click();
+  await toolbar(page).getByRole("button", { name: "換一句" }).click();
   await expect(page.getByText("說說沒有載入成功")).toBeVisible();
-  expect(await page.locator(".sheet").boundingBox()).toEqual(loaded);
+  expect(await page.locator(".stage").boundingBox()).toEqual(loaded);
 });
 
 test.describe("accessibility", () => {
@@ -390,8 +454,17 @@ test.describe("accessibility", () => {
         await page.setViewportSize({ width, height: 900 });
         await open(page);
         await pickingDone(page);
-        // Axe reads colours as painted, so a fade still running would count as low contrast
-        await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+        // Axe reads colours as painted, so a fade still running would count as low contrast. The page's fading edges
+        // follow the scroll and never finish, so only animations on the clock are waited for, and of those not the
+        // composer's caret, which keeps blinking with reduced motion too
+        await page.evaluate(() =>
+          Promise.all(
+            document
+              .getAnimations()
+              .filter((animation) => animation.timeline === document.timeline && animation.effect?.getTiming().iterations !== Infinity)
+              .map((animation) => animation.finished),
+          ),
+        );
         const { violations } = await new AxeBuilder({ page }).analyze();
         const serious = violations.filter(({ impact }) => impact === "critical" || impact === "serious");
         expect(serious.map(({ id, nodes }) => `${id}: ${nodes[0]?.html} ${nodes[0]?.failureSummary}`)).toEqual([]);
@@ -403,43 +476,27 @@ test.describe("accessibility", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await open(page);
     await pickingDone(page);
-    const draw = page.getByRole("button", { name: "再抽一句" });
+    const draw = toolbar(page).getByRole("button", { name: "換一句" });
     await draw.focus();
     await serve(page, "鍵盤抽到的一句");
     await page.keyboard.press("Enter");
     await expect(quoteText(page).locator(".sr-only")).toHaveText("鍵盤抽到的一句");
     await expect(draw).toBeFocused();
-    await page.getByRole("button", { name: "全部" }).focus();
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: "動畫" })).toBeFocused();
-    await expect(page.getByRole("button", { name: "動畫" })).toHaveCSS("outline-style", "solid");
+    await expect(toolbar(page).getByRole("button", { name: /^按讚/ })).toBeFocused();
+    await expect(toolbar(page).getByRole("button", { name: /^按讚/ })).toHaveCSS("outline-style", "solid");
   });
 
   test("touch targets on a phone are at least 44px", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     await open(page);
-    const small = await page.locator(".action-bar button").evaluateAll((buttons) =>
-      buttons.filter((button) => {
-        const box = button.getBoundingClientRect();
+    const small = await toolbar(page).locator("button, a").evaluateAll((controls) =>
+      controls.filter((control) => {
+        const box = control.getBoundingClientRect();
         return box.width > 0 && (box.width < 44 || box.height < 44);
       }).length,
     );
     expect(small).toBe(0);
-  });
-});
-
-test.describe("the type case on a phone", () => {
-  test("M-25: opens as a drawer, filters, and closes", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 800 });
-    await open(page);
-    await page.getByRole("button", { name: "開啟類別字盤" }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "詩詞" }).click();
-    await expect(dialog.getByRole("button", { name: "詩詞" })).toHaveAttribute("aria-pressed", "true");
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-    await expect(quoteText(page).locator(".sr-only")).toHaveText("行到水窮處，坐看雲起時。");
   });
 });
 
@@ -454,17 +511,7 @@ test.describe("visual baselines", () => {
         await page.setViewportSize({ width, height: 900 });
         await open(page);
         await pickingDone(page);
-        // Lazy images below the fold would otherwise be blank in a full-page capture
-        await page.locator("img").evaluateAll((images: HTMLImageElement[]) =>
-          Promise.all(
-            images.map((image) => {
-              image.loading = "eager";
-              return image.decode();
-            }),
-          ),
-        );
-        await expect(page.locator("img").first()).toBeVisible();
-        await expect(page).toHaveScreenshot(`home-${colorScheme}-${width}.png`, { fullPage: true });
+        await expect(page).toHaveScreenshot(`home-${colorScheme}-${width}.png`);
       });
     }
   }
