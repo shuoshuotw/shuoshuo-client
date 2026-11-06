@@ -20,7 +20,7 @@ export type CaseSummary = Schemas["CaseSummary"];
 export type CaseDetail = Schemas["CaseDetail"];
 export type AuditLog = Schemas["AuditLog"];
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5001";
 
 /** A Core error. `message` is Core's own Traditional Chinese wording, so the client never keeps a second copy. */
 export class ApiFailure extends Error {

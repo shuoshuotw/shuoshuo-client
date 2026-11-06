@@ -10,7 +10,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: "disabled" } },
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:5000",
     ...devices["Desktop Chrome"],
     ...(process.env.CI ? {} : { channel: "chrome" }),
   },
@@ -19,7 +19,7 @@ export default defineConfig({
     {
       // Needs a build with NEXT_PUBLIC_API_BASE_URL=http://localhost:3999 and NEXT_PUBLIC_MOTION_LOG=1
       command: "pnpm start",
-      url: "http://localhost:3000",
+      url: "http://localhost:5000",
       reuseExistingServer: true,
       env: { NEXT_PUBLIC_API_BASE_URL: CORE },
     },

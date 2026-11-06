@@ -4,7 +4,7 @@ import { test as base, type BrowserContext, expect, type Page } from "@playwrigh
 
 export { expect };
 
-export const CORE = "http://localhost:3001";
+export const CORE = "http://localhost:5001";
 const SUPABASE = "http://127.0.0.1:54321";
 
 // CI passes it in; locally Core's own env file holds the CLI's default

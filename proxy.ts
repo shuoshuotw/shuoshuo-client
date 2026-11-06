@@ -41,7 +41,7 @@ export async function proxy(request: NextRequest) {
 async function isAdmin(supabase: ReturnType<typeof createServerClient>) {
   const { data } = await supabase.auth.getSession();
   if (!data.session) return false;
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"}/v1/me`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5001"}/v1/me`, {
     headers: { Authorization: `Bearer ${data.session.access_token}` },
     cache: "no-store",
   }).catch(() => null);

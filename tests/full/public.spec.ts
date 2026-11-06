@@ -86,7 +86,7 @@ test("CD-01: public pages are cacheable and carry no cookie, private ones are no
 test("SEC-12: the callback never redirects off site", async ({ request }) => {
   for (const next of ["https://evil.example", "//evil.example", "/\\evil.example"]) {
     const response = await request.get(`/auth/callback?error=access_denied&next=${encodeURIComponent(next)}`, { maxRedirects: 0 });
-    expect(new URL(response.headers().location!).host, next).toBe("localhost:3000");
+    expect(new URL(response.headers().location!).host, next).toBe("localhost:5000");
   }
 });
 

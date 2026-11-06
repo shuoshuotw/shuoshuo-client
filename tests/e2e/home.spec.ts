@@ -338,17 +338,19 @@ test.describe("latest quotes", () => {
     await expect(front(page).getByRole("link", { name: "讀這句" })).toHaveAttribute("href", /^\/q\//);
   });
 
+  // Real time, not page.clock: running 9.5 s of faked frames at once with the pointer over the fan (its tilt, the
+  // magnets, the light) left CI's Chromium answering nothing for longer than the test may take
   test("it swaps on its own, and stops while the pointer is over it", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.clock.install();
     await open(page);
     await page.locator(".latest").scrollIntoViewIfNeeded();
     await expect(page.locator(".fan")).toHaveAttribute("data-open", "true");
     await page.mouse.move(5, 5);
-    await page.clock.runFor(4600);
-    await expect(front(page)).toHaveAttribute("aria-label", /^第 2 句/);
+    // One swap comes 4.5 s after the hand opens
+    await expect(front(page)).toHaveAttribute("aria-label", /^第 2 句/, { timeout: 7000 });
     await page.locator(".fan").hover();
-    await page.clock.runFor(9500);
+    // Longer than a swap: held under the pointer, the hand stays where it is
+    await page.waitForTimeout(5500);
     await expect(front(page)).toHaveAttribute("aria-label", /^第 2 句/);
   });
 });
