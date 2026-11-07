@@ -1,7 +1,8 @@
+import { EyeOff, House } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CommentSection } from "@/components/comment-section";
+import { LinkButton } from "@/components/link-button";
 import { QuoteDetail } from "@/components/quote-detail";
 import { PageShell } from "@/components/site-chrome";
 import { lookUpQuote } from "@/lib/api/server";
@@ -26,11 +27,14 @@ export default async function QuotePage({ params }: Props) {
   if (found.kind === "removed") {
     return (
       <PageShell className="tombstone">
+        <span className="tombstone-icon" aria-hidden="true">
+          <EyeOff size={28} />
+        </span>
         <h1 className="section-title">這則說說已移除</h1>
         <p>原因類別：{reasonLabel(found.reason)}</p>
-        <Link className="button button-primary" href="/">
+        <LinkButton href="/" color="primary" radius="full" data-magnet startContent={<House aria-hidden="true" size={18} />}>
           回首頁
-        </Link>
+        </LinkButton>
       </PageShell>
     );
   }

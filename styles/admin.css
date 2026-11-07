@@ -1,116 +1,60 @@
-/* Accent ladder on an open plane (§12.7). Colour stays small; a large surface only ever gets --accent-tint. */
+/* The back office (§12.7), inside the personal centre: the same glass sheets, tabs and controls as the rest of it.
+   Colour stays small; a large surface only ever gets --accent-tint. */
 
-.admin {
-  display: grid;
-  min-height: 100svh;
-}
-
-.admin-side {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-3) var(--frame);
-}
-
-.admin-nav {
-  display: flex;
-  order: 3;
-  flex: 1 0 100%;
-  gap: var(--space-1);
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-.admin-nav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 var(--space-3);
-}
-
-.admin-nav a:hover {
-  background: var(--sunk);
-}
-
-.admin-nav a[aria-current="page"] {
-  background: var(--sunk);
-  font-weight: 700;
-}
-
-.admin-tools {
-  margin-left: auto;
-}
-
-.admin-main {
-  display: grid;
-  gap: var(--space-4);
-  align-content: start;
-  min-width: 0;
-  padding: var(--space-3) var(--frame) var(--space-7);
-}
-
-.admin-title {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.admin-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.segmented {
-  display: inline-flex;
-  background: var(--sunk);
-}
-
-.segmented button {
-  min-height: 44px;
-  padding: 0 var(--space-4);
+.route-tabs button {
   cursor: pointer;
-  transition: background-color var(--duration-quick) var(--ease-out);
 }
 
-.segmented button[aria-pressed="true"] {
-  background: var(--action);
-  color: var(--action-ink);
-  font-weight: 700;
-}
-
+/* Count cards that filter: the number is the question this screen answers */
 .count-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
+  gap: var(--space-3);
+}
+
+/* The title, the tabs and the counts: their own group, which a phone keeps at the top (below) */
+.admin-head {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .count-card {
+  position: relative;
   display: grid;
   justify-items: start;
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface);
+  gap: var(--space-1);
+  overflow: hidden;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background-color: var(--glass);
+  box-shadow: var(--shadow-soft);
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--duration-quick) var(--ease-out);
-}
-
-.count-card:hover {
-  background: var(--sunk);
 }
 
 .count-card[aria-pressed="true"] {
-  background: var(--accent-tint);
+  border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+  background-color: color-mix(in oklab, var(--accent-tint) 75%, var(--surface));
 }
 
 .count-card-number {
-  font-size: 32px;
+  font-size: clamp(28px, 1.4rem + 1vw, 40px);
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
+}
+
+.count-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.count-card[aria-pressed="true"] .count-card-label {
+  color: var(--accent);
 }
 
 .table .numeric {
@@ -128,56 +72,11 @@
   overflow-wrap: anywhere;
 }
 
-/* The two panes share one screen; each scrolls on its own */
-.case-panels {
-  height: calc(100svh - var(--space-3) - var(--space-7));
-}
-
-.case-separator {
-  width: 1px;
-  background: var(--sunk);
-}
-
-.case-separator:hover,
-.case-separator:focus-visible {
-  background: var(--muted);
-}
-
-.case-queue,
-.case-pane {
-  height: 100%;
-  overflow-y: auto;
-}
-
-.case-queue {
-  display: grid;
-  align-content: start;
-  gap: var(--space-1);
-  padding-right: var(--space-3);
-}
-
-.case-queue-item {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-}
-
-.case-queue-item:hover {
-  background: var(--sunk);
-}
-
-.case-queue-item[aria-current="page"] {
-  background: var(--accent-tint);
-}
-
-.case-pane {
-  padding-left: var(--space-5);
-}
-
+/* A case: the way back and through the queue on top, then the reported words on their stage, the decision, and the
+   facts behind it in sheets */
 .case-detail {
   display: grid;
   gap: var(--space-5);
-  max-width: 760px;
 }
 
 .case-section {
@@ -186,40 +85,296 @@
   gap: var(--space-3);
 }
 
+.case-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.case-steps {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.case-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--glass);
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The reported words, on the stage the comments' dialog gives a sentence (its category's colour, or the ink's for a
+   comment), with what it is under it */
+.case-target {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.case-target .comments-quote {
+  max-height: none;
+  cursor: default;
+}
+
+.case-target .comments-quote:hover {
+  border-color: color-mix(in oklab, var(--glow) 24%, var(--line));
+}
+
+.case-target-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .case-comment {
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--sunk);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
+/* The decision: two choices as cards to press, then what goes with the one chosen, at a reading width */
 .resolve-form {
-  padding: var(--space-5);
-  background: var(--surface);
+  justify-items: stretch;
 }
 
-.resolve-form .input {
-  background: var(--ground);
+.resolve-form > :not(.block-title, .resolve-actions) {
+  max-width: 640px;
 }
 
-.case-reports {
+.resolve-choices {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
+.resolve-choices .check {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.resolve-choices .check:has(input:checked) {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--line));
+  background-color: color-mix(in oklab, var(--accent-tint) 60%, transparent);
+}
+
+/* The reason a violation is confirmed for: folds open under the choices as 確認違規 is picked (accordion). Folded,
+   it gives back the form's gap above it too */
+.resolve-reason {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: calc(var(--space-5) * -1);
+  opacity: 0;
+  transition:
+    grid-template-rows var(--duration-medium) var(--ease-smooth-out),
+    margin-top var(--duration-medium) var(--ease-smooth-out),
+    opacity var(--duration-fast) var(--ease-in-out);
+}
+
+.resolve-reason[data-open] {
+  grid-template-rows: 1fr;
+  margin-top: 0;
+  opacity: 1;
+}
+
+.resolve-reason > div {
+  min-height: 0;
+  overflow: hidden;
+  /* Room for the field's focus ring inside the fold */
+  padding: 4px;
+  margin: -4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resolve-reason {
+    transition: none;
+  }
+}
+
+:root[data-motion="reduce"] .resolve-reason {
+  transition: none;
+}
+
+.resolve-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.report-list,
 .appeal-list {
   display: grid;
   gap: var(--space-3);
+}
+
+/* Who wrote it, on one card: the name and how they stand on a line, the two numbers as tiles, then what came before */
+.subject-card {
+  justify-items: stretch;
+}
+
+.subject-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.subject-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.admin-facts.subject-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* The reports and what has been done, side by side on a wide screen */
+.case-records {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.case-panel {
+  justify-items: stretch;
+}
+
+/* A report: why on top, the reporter's own words as a quote under it, then when and by whom in small type */
+.report-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--sunk) 70%, transparent);
+}
+
+.report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.report-head svg {
+  color: var(--accent);
+}
+
+.report-detail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* What has been done, newest first, down a line with a dot for each step */
+.audit-timeline {
+  display: grid;
+  gap: var(--space-4);
+  padding-left: var(--space-5);
+  border-left: 2px solid var(--line);
+  margin-left: 6px;
+}
+
+.audit-timeline li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+}
+
+.audit-timeline li::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: calc(var(--space-5) * -1 - 7px);
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface);
+  border-radius: var(--radius-full);
+  background: var(--ink);
+}
+
+.audit-timeline li:not(:first-child)::before {
+  background: var(--muted);
+}
+
+.audit-timeline-action {
+  font-weight: 700;
+}
+
+@media (min-width: 1024px) {
+  .case-records {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
 }
 
 .appeal-card {
   justify-items: stretch;
 }
 
-.admin-facts {
+.appeal-statement {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.appeal-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3) var(--space-7);
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* A user's numbers, each on a tile of its own */
+.admin-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.admin-facts > div {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
 }
 
 .admin-facts dt {
@@ -228,66 +383,259 @@
 }
 
 .admin-facts dd {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .audit-filters {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
   gap: var(--space-3);
 }
 
+/* HeroUI's select and date range stand as tall as the text fields beside them (52px), so a row lines up top and bottom */
+.audit-filters :is(.choice-trigger, [data-slot="input-wrapper"]) {
+  min-height: 52px;
+}
+
+/* The action and the period span the row on a phone; the actor and the target share one */
+.audit-filters > :is(:first-child, .audit-range) {
+  grid-column: 1 / -1;
+}
+
+.range-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.range-clear:hover {
+  background: color-mix(in oklab, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+
+.audit-action {
+  font-weight: 700;
+}
+
+/* A button in a table cell lines its words up with the plain words above and below it (系統, –): its pill, which only
+   shows under the pointer, reaches out past them instead */
+.cell-button {
+  min-height: 32px;
+  margin-inline: calc(var(--space-3) * -1);
+}
+
+/* A column of one short action each (查看, or – where there is none), centred under its heading */
+.table :is(th, td).table-center {
+  text-align: center;
+}
+
+/* The actor's name reads as a name */
+.actor-trigger {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.audit-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* The details and the actor: a card as wide as what it shows, not the dialogs' reading width */
+.morph-dialog:is(.audit-dialog, .actor-dialog) .morph-card {
+  width: fit-content;
+  min-width: min(340px, calc(100vw - 32px));
+  max-width: min(720px, calc(100vw - 32px));
+}
+
+.audit-dialog .audit-metadata {
+  justify-self: stretch;
+}
+
+.actor-dialog .morph-inner {
+  justify-items: stretch;
+}
+
+.actor-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.actor-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.actor-facts {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--sunk);
+}
+
+.actor-facts dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.actor-facts code {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
 .audit-metadata {
-  max-width: 44ch;
-  overflow-x: auto;
+  max-height: min(60dvh, 480px);
+  padding: var(--space-4);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--sunk);
   font-family: var(--font-code);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0;
+}
+
+/* A phone keeps the head at the top and the list scrolls under it, into the page's own fade: a band of the same veil
+   the page fades into comes up behind the head over the first 40px scrolled, and runs out below it */
+@media (max-width: 767px) {
+  .admin-head {
+    position: sticky;
+    top: 0;
+    z-index: 31;
+    padding: var(--space-3) 0 var(--space-4);
+    margin-top: calc(var(--space-3) * -1);
+  }
+
+  /* The head brings its own veil; the page's veil, laid over everything at the top of the screen, would cover it */
+  .app-scroll:has(.admin-head)::before {
+    visibility: hidden;
+  }
+
+  .admin-head::before {
+    content: "";
+    position: absolute;
+    inset: 0 calc(var(--frame) * -1) -32px;
+    z-index: -1;
+    background: linear-gradient(var(--veil) calc(100% - 32px), transparent);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .admin-head::before {
+      animation: veil-in linear both;
+      animation-timeline: --page;
+      animation-range: 0 40px;
+    }
+  }
+
+  .count-cards {
+    gap: var(--space-2);
+  }
+
+  /* Two tiles a row: a date stays on one line */
+  .admin-facts {
+    gap: var(--space-2);
+  }
+
+  .admin-facts > div {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .admin-facts dd {
+    font-size: 18px;
+  }
+
+  .count-card {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* A table of cases or log entries lays each row out as a card: what it is on top, the rest in a line under it, each
+     named by its column */
+  .table-scroll:has(.table-cards) {
+    overflow-x: visible;
+  }
+
+  .table-cards thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .table-cards tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--line); /* taste-skill-ignore: rows of a list need their rule */
+  }
+
+  .table-cards tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .table-cards tbody td {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .table-cards td[data-label]::before {
+    content: attr(data-label);
+    color: color-mix(in oklab, var(--muted) 70%, transparent);
+  }
+
+  .table-cards td.numeric {
+    text-align: left;
+  }
+
+  /* After its column's name on a card, so it keeps its own room */
+  .table-cards .cell-button {
+    margin-inline: 0;
+  }
+
+  .table-cards .table-lead {
+    order: -1;
+    flex-basis: 100%;
+    color: var(--ink);
+    font-size: 15px;
+  }
+
+  .table-cards .case-preview-cell {
+    flex-basis: 100%;
+    min-width: 0;
+    color: var(--ink);
+    font-size: 15px;
+  }
 }
 
 @media (min-width: 768px) {
   .audit-filters {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    max-width: 760px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .admin {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .admin-side {
-    position: sticky;
-    top: 0;
-    align-self: start;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: stretch;
-    height: 100svh;
-    padding: var(--space-4) var(--space-3) var(--space-4) var(--frame);
+  .audit-filters > :is(:first-child, .audit-range) {
+    grid-column: auto;
   }
 
-  .admin-nav {
-    order: 0;
-    flex: 1;
-    flex-direction: column;
-    overflow: visible;
-  }
-
-  .admin-tools {
-    margin-left: 0;
-  }
-
-  .admin-main {
-    padding: var(--space-4) var(--frame) var(--space-7) var(--space-3);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .segmented button,
-  .count-card {
-    transition-duration: 0ms;
+  .admin-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

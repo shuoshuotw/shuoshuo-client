@@ -1,12 +1,15 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Tooltip } from "@heroui/react";
+import { Check, CircleQuestionMark, Pencil } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/lib/api/browser";
 import type { OwnQuote, Quote } from "@/lib/api/client";
 import { CATEGORIES } from "@/lib/categories";
 import { countChars } from "@/lib/format";
 import { notify } from "@/lib/toast";
+import { categoryMotion } from "@/motion/category";
+import { CategoryIcon } from "./category-icon";
 import { Field, FormError, useFormErrors } from "./form";
 import { MorphDialog } from "./morph-dialog";
 import { stockOf } from "./quote-sheet";
@@ -32,52 +35,97 @@ export function validateQuote({ content, source_from, category }: QuoteDraft) {
   const length = countChars(content);
   if (length < 2 || length > 100) errors.content = "說說須為 2 至 100 字";
   const source = countChars(source_from);
-  if (source < 1 || source > 100) errors.source_from = "來源須為 1 至 100 字";
+  if (source < 1 || source > 100) errors.source_from = "出處須為 1 至 100 字";
   if (!category) errors.category = "請選一個類別";
   return errors;
 }
 
-type FieldsProps = { draft: QuoteDraft; errors: Record<string, string>; onChange: (draft: QuoteDraft) => void };
+type FieldsProps = {
+  draft: QuoteDraft;
+  errors: Record<string, string>;
+  onChange: (draft: QuoteDraft) => void;
+  /** Off where the page writes the sentence in a composer of its own */
+  withContent?: boolean;
+  /** The messages are toasts; the fields only turn red */
+  quietErrors?: boolean;
+};
 
-export function QuoteFields({ draft, errors, onChange }: FieldsProps) {
+export function QuoteFields({ draft, errors, onChange, withContent = true, quietErrors = false }: FieldsProps) {
   return (
     <>
-      <Field label="說說" error={errors.content} hint={`${countChars(draft.content)} / 100 字，僅接受繁體中文`}>
-        {(props) => <textarea {...props} className="input" rows={4} value={draft.content} onChange={(event) => onChange({ ...draft, content: event.target.value })} />}
-      </Field>
-      <Field label="來源" error={errors.source_from} hint="作品、作者或出處；自己寫的可以填「原創」">
+      {withContent && (
+        <Field label="說說" error={errors.content} quiet={quietErrors} hint={`${countChars(draft.content)} / 100 字，僅接受繁體中文`}>
+          {(props) => <textarea {...props} className="input" rows={4} value={draft.content} onChange={(event) => onChange({ ...draft, content: event.target.value })} />}
+        </Field>
+      )}
+      <Field
+        label="出處"
+        error={errors.source_from}
+        quiet={quietErrors}
+        hint={
+          <>
+            這則說說來自哪位作者，或哪個
+            {/* The question mark never wraps onto a line of its own */}
+            <span className="nowrap">
+              好作品？
+              <SourceHelp />
+            </span>
+          </>
+        }
+      >
         {(props) => <input {...props} className="input" value={draft.source_from} onChange={(event) => onChange({ ...draft, source_from: event.target.value })} />}
       </Field>
       <fieldset className="field" data-invalid={errors.category ? "true" : undefined}>
         <legend>類別</legend>
         <div className="category-picker">
           {CATEGORIES.map(({ key, name }) => (
-            <label key={key} className="case-cell" data-on={draft.category === key} style={stockOf(key)}>
+            <label key={key} className="case-cell" data-magnet data-on={draft.category === key} style={stockOf(key)}>
+              <CategoryIcon category={key} size={15} />
               <input
                 className="sr-only"
                 type="radio"
                 name="category"
                 value={key}
                 checked={draft.category === key}
-                onChange={() => onChange({ ...draft, category: key })}
+                onChange={(event) => {
+                  onChange({ ...draft, category: key });
+                  // Its icon performs its own move, as on the categories bar (M-20)
+                  categoryMotion(event.currentTarget.closest("label")?.querySelector(".category-icon"));
+                }}
               />
               {name}
             </label>
           ))}
         </div>
-        {errors.category && <p className="field-error">{errors.category}</p>}
+        {errors.category && !quietErrors && <p className="field-error">{errors.category}</p>}
       </fieldset>
     </>
   );
 }
 
-type EditProps<T extends Quote | OwnQuote> = { quote: T; onSaved: (quote: T) => void };
+const ORIGINAL_TIP = "若是自己發想的，可以填「原創」";
 
-export function EditQuoteButton<T extends Quote | OwnQuote>({ quote, onSaved }: EditProps<T>) {
+/** A question mark after the source's hint; under the pointer or focus, or tapped on a phone, it says what to write for one's own words. */
+function SourceHelp() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip content={ORIGINAL_TIP} isOpen={open} onOpenChange={setOpen} isDismissable showArrow placement="top" classNames={{ content: "tip" }}>
+      <button type="button" className="hint-help" aria-label={ORIGINAL_TIP} onClick={() => setOpen(true)}>
+        <CircleQuestionMark aria-hidden="true" size={16} />
+      </button>
+    </Tooltip>
+  );
+}
+
+type EditProps<T extends Quote | OwnQuote> = { quote: T; onSaved: (quote: T) => void };
+type EditButtonProps<T extends Quote | OwnQuote> = EditProps<T> & { triggerClassName?: string };
+
+export function EditQuoteButton<T extends Quote | OwnQuote>({ quote, onSaved, triggerClassName = "text-button" }: EditButtonProps<T>) {
   return (
     <MorphDialog
       title="編輯說說"
-      triggerClassName="text-button"
+      triggerClassName={triggerClassName}
+      magnet={triggerClassName !== "text-button"}
       label={
         <>
           <Pencil aria-hidden="true" />
@@ -130,6 +178,7 @@ function EditQuoteForm<T extends Quote | OwnQuote>({ quote, onSaved, close }: Ed
       <FormError>{formError}</FormError>
       <div className="dialog-actions">
         <button type="submit" className="button button-primary" disabled={busy}>
+          <Check aria-hidden="true" />
           儲存
         </button>
         <button type="button" className="button" onClick={close}>

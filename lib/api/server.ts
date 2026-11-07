@@ -45,7 +45,7 @@ export async function lookUpQuote(id: string): Promise<QuoteLookup> {
   }
 }
 
-const userPath = (username: string) => `/v1/users/${encodeURIComponent(username)}`;
+const userPath = (username: string) =>`/v1/users/${encodeURIComponent(username)}`;
 
 export async function getProfile(username: string): Promise<PublicProfile | null> {
   try {
@@ -60,11 +60,14 @@ export async function getProfile(username: string): Promise<PublicProfile | null
  * shortcut: first 50 rows only, because these two lists refuse anonymous browsers and only this server can sign for them.
  * Upgrade to a signed proxy route when someone has more than 50 worth paging through.
  */
-export async function getReactionList<T extends LikeItem | FavoriteItem>(username: string, kind: "likes" | "favorites"): Promise<T[] | null> {
+export async function getReactionList<T extends LikeItem | FavoriteItem>(username: string, kind: "likes" | "favorites"): Promise<T[] | "private" | null> {
   try {
     return await get<T[]>(`${userPath(username)}/${kind}?limit=50`);
   } catch (error) {
-    if (error instanceof ApiFailure && (error.status === 401 || error.status === 403 || error.status === 404)) return null;
+    // PV-03: a list its owner keeps to themself still has its page, which says so
+    if (error instanceof ApiFailure && (error.code === "USER_LIKES_PRIVATE" || error.code === "USER_FAVORITES_PRIVATE")) return "private";
+    if (error instanceof ApiFailure && error.status === 404) return null;
+    // A 401 is this server's own signature failing (INTERNAL_HMAC_SECRETS unset or not Core's): an error, never a 404
     throw error;
   }
 }

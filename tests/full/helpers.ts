@@ -4,7 +4,7 @@ import { test as base, type BrowserContext, expect, type Page } from "@playwrigh
 
 export { expect };
 
-export const CORE = "http://localhost:3001";
+export const CORE = "http://localhost:5001";
 const SUPABASE = "http://127.0.0.1:54321";
 
 // CI passes it in; locally Core's own env file holds the CLI's default
@@ -88,12 +88,13 @@ export async function signIn(page: Page, user: TestUser) {
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL("**/me");
-  await expect(page.getByRole("heading", { level: 1, name: user.username })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "我的帳號" })).toBeVisible();
 }
 
 export async function signOut(page: Page) {
-  await page.goto("/me/security");
-  await page.getByRole("button", { name: "登出此裝置" }).click();
+  await page.goto("/me");
+  await page.getByRole("button", { name: "從此裝置登出" }).click();
+  await page.getByRole("dialog", { name: "從此裝置登出" }).getByRole("button", { name: "登出", exact: true }).click();
   await page.waitForURL("/");
 }
 
@@ -103,11 +104,15 @@ export const uniqueQuote = (text = "測試") => `${text}${randomUUID().replaceAl
 export async function submitQuote(page: Page, content = uniqueQuote()) {
   await page.goto("/submit");
   await page.getByLabel("說說", { exact: true }).fill(content);
-  await page.getByLabel("來源").fill("全堆疊測試");
+  await page.getByLabel("出處").fill("全堆疊測試");
   await page.getByRole("radio", { name: "原創" }).check({ force: true });
+  // M-08 ends on the home page, so the new quote's id comes from Core's answer
+  const created = page.waitForResponse((response) => response.url().endsWith("/v1/quotes") && response.request().method() === "POST");
   await page.getByRole("button", { name: "送出" }).click();
-  await page.waitForURL(/\/q\/[0-9a-f-]{36}$/);
-  return { content, id: page.url().split("/").at(-1)! };
+  const id = ((await (await created).json()) as { data: { id: string } }).data.id;
+  await page.waitForURL("/");
+  await page.goto(`/q/${id}`);
+  return { content, id };
 }
 
 export const quoteHeading = (page: Page) => page.getByTestId("quote-text");

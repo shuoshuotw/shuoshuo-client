@@ -17,8 +17,8 @@ export type SendReaction = (quoteId: string, kind: ReactionKind, active: boolean
 type Reactions = {
   byQuote: Record<string, ReactionState>;
   seed: (quoteId: string, state: Partial<ReactionState>) => void;
-  /** The signed-in user's own state, from /v1/me/quote-states. Never touches a request in flight. */
-  merge: (quoteId: string, state: Partial<Pick<ReactionState, "liked" | "favorited">>) => void;
+  /** The signed-in user's own state, from /v1/me/quote-states, or counts broadcast live. Never touches a request in flight. */
+  merge: (quoteId: string, state: Partial<Omit<ReactionState, "pending">>) => void;
   toggle: (quoteId: string, kind: ReactionKind, send: SendReaction, onFail: () => void) => void;
 };
 

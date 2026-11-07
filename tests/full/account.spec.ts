@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
-import { coreCall, coreToken, distinctCaller, expect, newUser, quoteHeading, signIn, signOut, submitQuote, test, uniqueQuote } from "./helpers";
+import { coreCall, coreToken, distinctCaller, expect, newUser, signIn, signOut, submitQuote, test, uniqueQuote } from "./helpers";
 
-test("E2E-02: sign in, submit, the tick, the detail page, then my submissions", async ({ page }) => {
+test("E2E-02: sign in, submit, the tick, the home page, then my submissions", async ({ page }) => {
   const user = await newUser();
   await signIn(page, user);
 
@@ -9,12 +9,13 @@ test("E2E-02: sign in, submit, the tick, the detail page, then my submissions", 
   const content = uniqueQuote();
   await page.getByLabel("說說", { exact: true }).fill(content);
   await expect(page.getByLabel("預覽").getByTestId("quote-text")).toContainText(content);
-  await page.getByLabel("來源").fill("全堆疊測試");
+  await page.getByLabel("出處").fill("全堆疊測試");
   await page.getByRole("radio", { name: "原創" }).check({ force: true });
   await page.getByRole("button", { name: "送出" }).click();
-  await expect(page.getByRole("img", { name: "完成" })).toBeVisible();
-  await page.waitForURL(/\/q\//);
-  await expect(quoteHeading(page)).toContainText(content);
+  // M-08: the button turns into the tick where it was pressed, then the page goes home
+  await expect(page.getByRole("button", { name: "已送出" })).toBeVisible();
+  await page.waitForURL("/");
+  await expect(page.getByText("說說已送出")).toBeVisible();
 
   await page.goto("/me/quotes");
   await expect(page.getByRole("link", { name: content })).toBeVisible();
@@ -31,7 +32,7 @@ test("M-15: a bad submission shakes, explains and takes focus", async ({ page })
 
   // Core's own wording reaches the field
   await page.getByLabel("說說", { exact: true }).fill("这是简体中文的句子");
-  await page.getByLabel("來源").fill("全堆疊測試");
+  await page.getByLabel("出處").fill("全堆疊測試");
   await page.getByRole("radio", { name: "原創" }).check({ force: true });
   await page.getByRole("button", { name: "送出" }).click();
   await expect(page.getByText("僅接受繁體中文").last()).toBeVisible();
@@ -59,7 +60,12 @@ test("E2E-03: reactions survive a reload, appear in my lists and can be undone",
   await expect(page.getByRole("link", { name: content })).toBeVisible();
   await page.goto("/me/favorites");
   await expect(page.getByRole("link", { name: content })).toBeVisible();
-  await page.getByRole("button", { name: "取消收藏" }).click();
+  // The card's own bookmark takes the favourite back; the list no longer has it once loaded again
+  const taken = page.waitForResponse((response) => response.url().endsWith(`/v1/quotes/${id}/favorite`) && response.request().method() === "DELETE");
+  await page.getByRole("button", { name: /^收藏/ }).click();
+  await taken;
+  await expect(page.getByRole("button", { name: /^收藏/ })).toHaveAttribute("aria-pressed", "false");
+  await page.reload();
   await expect(page.getByRole("link", { name: content })).toHaveCount(0);
   await expect(page.getByText("你還沒有收藏任何說說")).toBeVisible();
 
@@ -95,7 +101,7 @@ test("E2E-04: comment, page, edit, pin, delete", async ({ page }) => {
   await expect(page.locator(".comment")).toHaveCount(21);
 
   await page.getByLabel("寫下你的留言").fill("第一則真正的留言");
-  await page.getByRole("button", { name: "送出留言" }).click();
+  await page.getByRole("button", { name: "送出", exact: true }).click();
   const mine = page.locator(".comment", { hasText: "第一則真正的留言" });
   await expect(mine).toBeVisible();
 
@@ -114,7 +120,7 @@ test("E2E-04: comment, page, edit, pin, delete", async ({ page }) => {
   await expect(page.locator(".comment[data-pinned]")).toHaveCount(0);
 
   await edited.getByRole("button", { name: "刪除" }).click();
-  await page.getByRole("dialog", { name: "刪除這則留言" }).getByRole("button", { name: "確定刪除" }).click();
+  await page.getByRole("dialog", { name: "刪除這則留言？" }).getByRole("button", { name: "確定刪除" }).click();
   await expect(page.locator(".comment", { hasText: "改過的留言" })).toHaveCount(0);
 });
 
@@ -134,13 +140,13 @@ test("E2E-12: edit marks the quote, a rename follows it, and deletion keeps the 
   await page.goto("/me");
   await page.getByLabel("名稱").fill(renamed);
   await page.getByRole("button", { name: "更新名稱" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: renamed })).toBeVisible();
+  await expect(page.getByText("名稱已更新")).toBeVisible();
 
   await page.goto(`/q/${id}`);
   await expect(page.getByRole("link", { name: renamed, exact: true })).toBeVisible();
 
   await page.goto("/me/security");
-  await page.getByRole("button", { name: "刪除我的帳號" }).click();
+  await page.getByRole("button", { name: "刪除帳號" }).click();
   const deletion = page.getByRole("dialog", { name: "刪除帳號" });
   await deletion.getByRole("textbox").fill("打錯的名字");
   await deletion.getByRole("button", { name: "永久刪除" }).click();
@@ -161,24 +167,28 @@ test("E2E-12: edit marks the quote, a rename follows it, and deletion keeps the 
   }).toPass({ timeout: 90_000, intervals: [5000] });
 });
 
-test("E2E-13: a closed list leaves the public page and the API refuses it", async ({ page }) => {
+test("E2E-13: a closed list says so on the public page and the API refuses it", async ({ page }) => {
   test.setTimeout(150_000);
   const owner = await newUser();
   const other = await newUser();
   await signIn(page, owner);
-  await page.getByLabel("公開我的收藏").click();
-  await expect(page.getByText("公開我的收藏：只有我看得到")).toBeVisible();
+  await page.getByRole("button", { name: /我的收藏/ }).click();
+  await page.getByRole("option", { name: "私人" }).click();
+  await expect(page.getByText("設定已更新")).toBeVisible();
 
   const { status, body } = await coreCall(`/v1/users/${encodeURIComponent(owner.username)}/favorites`, { token: await coreToken(other) });
   expect(status).toBe(403);
   expect(body!.error!.code).toBe("USER_FAVORITES_PRIVATE");
 
-  // Up to a minute of ISR here, up to five on the CDN (PV-03)
+  // Up to a minute of ISR here, up to five on the CDN (PV-03). The owner still sees the list itself
   await expect(async () => {
-    await page.goto(`/u/${encodeURIComponent(owner.username)}`);
-    await expect(page.getByRole("link", { name: "按讚" })).toBeVisible({ timeout: 1000 });
-    await expect(page.getByRole("link", { name: "收藏" })).toHaveCount(0);
+    await page.goto(`/u/${encodeURIComponent(owner.username)}/favorites`);
+    await expect(page.getByText("你還沒有收藏任何說說")).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 90_000, intervals: [5000] });
+  // Anyone else is told it is private
+  await signOut(page);
+  await page.goto(`/u/${encodeURIComponent(owner.username)}/favorites`);
+  await expect(page.getByText("此清單已設為私人")).toBeVisible();
 });
 
 test("USERNAME_TAKEN lands on the field", async ({ page }) => {
@@ -205,7 +215,7 @@ test("AU-05: the last OAuth identity cannot be unlinked; two can", async ({ page
   const google = page.locator(".plain-list li", { hasText: "Google" });
   await expect(google).toContainText("已綁定");
   await expect(google.getByRole("button", { name: "解除綁定" })).toHaveCount(0);
-  await expect(google).toContainText("至少要保留一個");
+  await expect(google).toContainText("至少需保留一種登入方式");
 
   identities = [identity("google"), identity("github")];
   await page.reload();
@@ -218,7 +228,7 @@ test("AU-06: a taken identity is explained in Chinese", async ({ page }) => {
   await expect(page.getByText("這個身分已綁定到另一個帳號")).toBeVisible();
 });
 
-test("AU-07: sign out here, elsewhere and everywhere", async ({ browser }) => {
+test("AU-07: sign out here, then everywhere, each after a yes", async ({ browser }) => {
   const user = await newUser();
   const firstContext = await browser.newContext();
   const secondContext = await browser.newContext();
@@ -229,23 +239,15 @@ test("AU-07: sign out here, elsewhere and everywhere", async ({ browser }) => {
   await signIn(first, user);
   await signIn(second, user);
 
-  // Others: this device stays, the other loses its refresh token
-  await first.goto("/me/security");
-  await first.getByRole("button", { name: "登出其他裝置" }).click();
-  await expect(first.getByText("其他裝置已登出")).toBeVisible();
-  await first.reload();
-  await expect(first.getByRole("heading", { level: 1, name: "安全設置" })).toBeVisible();
-
-  // This device
-  await first.getByRole("button", { name: "登出此裝置" }).click();
-  await first.waitForURL("/");
+  // This device, from 我的帳號
+  await signOut(first);
   await first.goto("/me");
   await first.waitForURL(/\/login/);
 
-  // Everywhere
-  await signIn(second, user);
+  // Everywhere, from the danger zone of the security page
   await second.goto("/me/security");
   await second.getByRole("button", { name: "登出所有裝置" }).click();
+  await second.getByRole("dialog", { name: "登出所有裝置" }).getByRole("button", { name: "全部登出" }).click();
   await second.waitForURL("/");
   await second.goto("/me");
   await second.waitForURL(/\/login/);
@@ -265,8 +267,7 @@ test("AU-02: a passkey registers and signs back in", async ({ page, context }) =
   await page.getByRole("button", { name: "新增 Passkey" }).click();
   await expect(page.getByRole("button", { name: "刪除", exact: true }).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "登出此裝置" }).click();
-  await page.waitForURL("/");
+  await signOut(page);
 
   await page.goto("/login?next=/me/quotes");
   await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
@@ -282,7 +283,7 @@ test("AU-03: no passkey yet explains that OAuth comes first", async ({ page, con
   });
   await page.goto("/login");
   await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
-  await expect(page.locator(".form-error")).toContainText("第一次請用 Google、Discord 或 GitHub 登入");
+  await expect(page.getByText("PassKey 登入失敗")).toBeVisible();
 });
 
 test("UI-05: the signed-in pages pass axe", async ({ page }) => {

@@ -1,32 +1,41 @@
 "use client";
 
 import type { UserIdentity } from "@supabase/supabase-js";
-import Link from "next/link";
+import { Fingerprint, Infinity as Forever, KeyRound, Link as LinkIcon, Link2, LogOut, Plus, ShieldAlert, ShieldCheck, ShieldOff, Trash2, TriangleAlert, Unlink } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Field, FormError, useFormErrors } from "@/components/form";
-import { PROVIDERS, rememberNext } from "@/components/login-panel";
+import { MARKS, PROVIDERS, rememberNext } from "@/components/login-panel";
 import { MeGate } from "@/components/me-gate";
 import { MorphDialog } from "@/components/morph-dialog";
+import { PasskeyMark } from "@/components/passkey-mark";
+import { PageHead } from "@/components/site-chrome";
 import { RetryNote, StateNote } from "@/components/state-note";
-import { ApiFailure, type Me } from "@/lib/api/client";
 import { api, browserAuth } from "@/lib/api/browser";
+import { ApiFailure, type Me } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
-import { notify } from "@/lib/toast";
+import { askToReauth, notify } from "@/lib/toast";
+import { useSessionStore } from "@/stores/session";
 
 const PROVIDER_KEYS: string[] = PROVIDERS.map(({ key }) => key);
 
 export default function SecurityPage() {
   return (
     <>
-      <h1 className="section-title">安全設置</h1>
+      <PageHead icon={ShieldCheck} title="安全設置" />
       <Suspense>
         <IdentityList />
       </Suspense>
       <PasskeyList />
-      <SessionActions />
-      <MeGate>{(me) => <DangerZone me={me} />}</MeGate>
+      <MeGate>
+        {(me) => (
+          <>
+            <PermanentKeys me={me} />
+            <DangerZone me={me} />
+          </>
+        )}
+      </MeGate>
     </>
   );
 }
@@ -82,7 +91,10 @@ function IdentityList() {
 
   return (
     <section className="panel">
-      <h2 className="block-title">登入方式</h2>
+      <h2 className="block-title">
+        <Link2 aria-hidden="true" />
+        登入方式
+      </h2>
       <FormError>{error}</FormError>
       {failed ? (
         <RetryNote title="登入方式沒有載入成功" onRetry={() => void load()} />
@@ -94,24 +106,32 @@ function IdentityList() {
             const identity = linked.find(({ provider }) => provider === key);
             return (
               <li key={key}>
-                <span>
+                <span className="identity">
+                  {MARKS[key]}
                   {name}
                   {identity ? `：已綁定${identity.identity_data?.email ? `（${identity.identity_data.email}）` : ""}` : "：尚未綁定"}
                 </span>
                 {identity ? (
                   lastOne ? (
-                    <span className="field-hint">至少要保留一個，這是遺失 Passkey 時唯一的復原途徑</span>
+                    <span className="field-hint">至少需保留一種登入方式</span>
                   ) : (
                     <ConfirmButton
-                      label="解除綁定"
+                      label={
+                        <>
+                          <Unlink aria-hidden="true" />
+                          解除綁定
+                        </>
+                      }
                       title={`解除綁定 ${name}`}
                       body={`之後就不能用 ${name} 登入這個帳號。`}
                       confirm="解除綁定"
+                      magnet
                       onConfirm={() => unlink(identity)}
                     />
                   )
                 ) : (
-                  <button type="button" className="text-button" onClick={() => void link(key)}>
+                  <button type="button" className="text-button" data-magnet onClick={() => void link(key)}>
+                    <LinkIcon aria-hidden="true" />
                     綁定
                   </button>
                 )}
@@ -130,7 +150,6 @@ function PasskeyList() {
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [supported, setSupported] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -146,11 +165,10 @@ function PasskeyList() {
   }, [load]);
 
   const register = async () => {
-    setError(null);
     const auth = await browserAuth();
     const { error: failure } = await auth.registerPasskey();
     if (failure) {
-      setError("Passkey 沒有新增成功，請再試一次。");
+      void notify("Passkey 沒有新增成功，請再試一次", "failed");
       return;
     }
     void notify("已新增 Passkey");
@@ -167,8 +185,10 @@ function PasskeyList() {
 
   return (
     <section className="panel">
-      <h2 className="block-title">Passkey</h2>
-      <FormError>{error}</FormError>
+      <h2 className="block-title">
+        <Fingerprint aria-hidden="true" />
+        Passkey
+      </h2>
       {failed ? (
         <RetryNote title="Passkey 沒有載入成功" onRetry={() => void load()} />
       ) : !passkeys ? (
@@ -181,16 +201,32 @@ function PasskeyList() {
         <ul className="plain-list">
           {passkeys.map((passkey) => (
             <li key={passkey.id}>
-              <span>
-                {passkey.friendly_name ?? "未命名的 Passkey"}，{formatDate(passkey.created_at)} 新增
+              <span className="passkey">
+                <PasskeyMark name={passkey.friendly_name} />
+                {passkey.friendly_name ?? "未命名的 Passkey"}
+                <span className="field-hint">此金鑰註冊於 {formatDate(passkey.created_at)}</span>
               </span>
-              <ConfirmButton label="刪除" title="刪除這個 Passkey" body="之後就不能用它登入。" confirm="確定刪除" onConfirm={() => remove(passkey.id)} />
+              <ConfirmButton
+                label={
+                  <>
+                    <Trash2 aria-hidden="true" />
+                    刪除
+                  </>
+                }
+                title="刪除這個 Passkey"
+                body="你確定要移除這個 PassKey 嗎？"
+                confirm="確定刪除"
+                tone="question"
+                magnet
+                onConfirm={() => remove(passkey.id)}
+              />
             </li>
           ))}
         </ul>
       )}
       {supported ? (
-        <button type="button" className="button" onClick={() => void register()}>
+        <button type="button" className="button" data-magnet onClick={() => void register()}>
+          <Plus aria-hidden="true" />
           新增 Passkey
         </button>
       ) : (
@@ -200,45 +236,120 @@ function PasskeyList() {
   );
 }
 
-function SessionActions() {
-  const signOut = async (scope: "local" | "others" | "global") => {
-    const auth = await browserAuth();
-    const { error } = await auth.signOut({ scope });
-    if (error) {
-      void notify("登出沒有成功，請再試一次");
-      return;
-    }
-    if (scope === "others") void notify("其他裝置已登出");
-    // A full load, so the header starts over without the session
-    else location.assign("/");
+/**
+ * §8.8.2: keys that never expire are allowed here after a yes in a dialog, and the leave is taken back the same way,
+ * which revokes every such key at once. The one button changes its words once the card is back in it.
+ */
+function PermanentKeys({ me }: { me: Me }) {
+  const allowed = me.allow_permanent_api_keys;
+  const firstAllowed = useRef(allowed);
+  // The new state waits for the card to shrink back into the button, so the closing card never shows the other one
+  const pending = useRef<Me | null>(null);
+
+  const set = async (allow: boolean) => {
+    pending.current = await api<Me>("/v1/me", { method: "PATCH", body: { allow_permanent_api_keys: allow } });
+  };
+
+  const settle = () => {
+    const next = pending.current;
+    if (!next) return;
+    pending.current = null;
+    useSessionStore.getState().setMe(next);
+    void notify(next.allow_permanent_api_keys ? "已允許永不過期的 API Key" : "已撤銷許可");
   };
 
   return (
-    <section className="panel">
-      <h2 className="block-title">登入狀態</h2>
-      <div className="dialog-actions">
-        <button type="button" className="button" onClick={() => void signOut("local")}>
-          登出此裝置
-        </button>
-        <button type="button" className="button" onClick={() => void signOut("others")}>
-          登出其他裝置
-        </button>
-        <button type="button" className="button" onClick={() => void signOut("global")}>
-          登出所有裝置
-        </button>
-      </div>
+    // Allowed is the riskier state, so it shows: a warning-coloured mark and edge, and a red way back
+    <section className="panel permanent-keys" data-allowed={allowed || undefined}>
+      <h2 className="block-title">
+        <KeyRound aria-hidden="true" />
+        永久 API Key
+        {/* The badge and the words come in anew when the state turns, as the edge eases to its colour */}
+        <span key={String(allowed)} className="state-badge" data-changed={allowed !== firstAllowed.current || undefined}>
+          {allowed ? <ShieldAlert aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
+          {allowed ? "已允許" : "未允許"}
+        </span>
+      </h2>
+      <p key={String(allowed)} className="state-words" data-changed={allowed !== firstAllowed.current || undefined}>
+        {allowed ? "您目前已允許永久 API Key 的建立。撤銷此許可時，所有設為永不過期的 API Key 將會同步撤銷" : "啟用此選項後，您將可以建立永不過期的 API Key"}
+      </p>
+      <ConfirmButton
+        labelKey={allowed ? "revoke" : "allow"}
+        label={
+          allowed ? (
+            <>
+              <ShieldOff aria-hidden="true" />
+              撤銷永久 API Key 許可
+            </>
+          ) : (
+            <>
+              <Forever aria-hidden="true" />
+              允許永不過期的 API Key
+            </>
+          )
+        }
+        title={allowed ? "撤銷永久 API Key 許可" : "允許永不過期的 API Key"}
+        body={
+          allowed
+            ? "撤銷後，所有永不過期的 API Key 會立即一併撤銷，使用它們的程式將無法再呼叫 API。"
+            : "開啟此選項你將可以創建永不過期的 API Key。一旦該 API Key 遭到外洩，在你撤銷之前都可以繼續使用。"
+        }
+        confirm={allowed ? "撤銷" : "允許"}
+        tone={allowed ? "warning" : "question"}
+        triggerClassName={allowed ? "button button-danger-outline" : "button button-primary"}
+        magnet
+        onConfirm={() => set(!allowed)}
+        onClosed={settle}
+      />
     </section>
   );
 }
 
 function DangerZone({ me }: { me: Me }) {
+  const signOutEverywhere = async () => {
+    const auth = await browserAuth();
+    const { error } = await auth.signOut({ scope: "global" });
+    if (error) throw new ApiFailure(400, error.code ?? "sign_out_failed", "登出沒有成功，請再試一次");
+    // A full load, so the header starts over without the session
+    location.assign("/");
+  };
+
   return (
     <section className="panel panel-danger">
-      <h2 className="block-title">刪除帳號</h2>
-      <p>留言、按讚、收藏與 API Key 會被刪除。已發布的說說與你的名稱會保留，並標示帳號已刪除。</p>
-      <MorphDialog label="刪除我的帳號" title="刪除帳號">
-        {(close) => <DeleteAccountForm me={me} close={close} />}
-      </MorphDialog>
+      <h2 className="block-title">
+        <TriangleAlert aria-hidden="true" />
+        危險區域
+      </h2>
+      <div className="danger-row">
+        <div>
+          <h3>登出所有裝置</h3>
+          <p>包含此裝置在內，登出所有已登入裝置。</p>
+        </div>
+        <ConfirmButton
+          label={
+            <>
+              <LogOut aria-hidden="true" />
+              登出所有裝置
+            </>
+          }
+          title="登出所有裝置"
+          body="包含這台裝置在內，每一台裝置都要重新登入。"
+          confirm="全部登出"
+          tone="warning"
+          triggerClassName="button"
+          magnet
+          onConfirm={signOutEverywhere}
+        />
+      </div>
+      <div className="danger-row">
+        <div>
+          <h3>與說說道別</h3>
+          <p>你所發布過的留言、按讚與收藏紀錄將會被全數刪除，所有 API Key 也將被撤銷。</p>
+        </div>
+        <MorphDialog label="刪除帳號" title="刪除帳號" triggerClassName="button button-danger" magnet tone="warning">
+          {(close) => <DeleteAccountForm me={me} close={close} />}
+        </MorphDialog>
+      </div>
     </section>
   );
 }
@@ -247,7 +358,6 @@ function DeleteAccountForm({ me, close }: { me: Me; close: () => void }) {
   const pathname = usePathname();
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
-  const [reauth, setReauth] = useState(false);
   const { form, errors, formError, fail, failWith, clear } = useFormErrors({ CONFIRMATION_MISMATCH: "confirm" });
 
   const submit = async (event: React.FormEvent) => {
@@ -264,8 +374,10 @@ function DeleteAccountForm({ me, close }: { me: Me; close: () => void }) {
       await auth.signOut({ scope: "local" });
       location.assign("/");
     } catch (failure) {
-      if (failure instanceof ApiFailure && failure.code === "REAUTH_REQUIRED") setReauth(true);
-      else failWith(failure);
+      if (failure instanceof ApiFailure && failure.code === "REAUTH_REQUIRED") {
+        askToReauth(pathname);
+        close();
+      } else failWith(failure);
       setBusy(false);
     }
   };
@@ -276,16 +388,8 @@ function DeleteAccountForm({ me, close }: { me: Me; close: () => void }) {
         {(props) => <input {...props} className="input" autoComplete="off" value={confirm} onChange={(event) => setConfirm(event.target.value)} />}
       </Field>
       <FormError>{formError}</FormError>
-      {reauth && (
-        <p className="banner" role="alert">
-          刪除帳號需要你在 10 分鐘內驗證過身分。
-          <Link className="text-link" href={`/login?reauth=1&next=${encodeURIComponent(pathname)}`}>
-            重新驗證
-          </Link>
-        </p>
-      )}
       <div className="dialog-actions">
-        <button type="submit" className="button button-primary" disabled={busy}>
+        <button type="submit" className="button button-danger" disabled={busy}>
           永久刪除
         </button>
         <button type="button" className="button" onClick={close}>

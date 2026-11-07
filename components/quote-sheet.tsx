@@ -1,7 +1,9 @@
 import type { CSSProperties } from "react";
 import type { Quote } from "@/lib/api/client";
 import { CATEGORIES } from "@/lib/categories";
-import type { QuoteLayout } from "@/stores/ui";
+import { formatDate } from "@/lib/format";
+import { Avatar } from "./avatar";
+import { SubmitterName } from "./quote-row";
 
 const segmenter = new Intl.Segmenter("zh-Hant", { granularity: "grapheme" });
 
@@ -32,13 +34,13 @@ export function quoteSize(length: number) {
 
 export const stockOf = (key: string): CSSProperties => ({ "--stock": `var(--stock-${key})` }) as CSSProperties;
 
-const categoryName = (key: string) => CATEGORIES.find((category) => category.key === key)?.name ?? key;
+export const categoryName = (key: string) => CATEGORIES.find((category) => category.key === key)?.name ?? key;
 
 /** Every character is its own span so it can be picked and flipped; screen readers get the sentence whole. */
-export function QuoteType({ content, layout = "horizontal" }: { content: string; layout?: QuoteLayout }) {
+export function QuoteType({ content }: { content: string }) {
   const chars = Array.from(segmenter.segment(content), ({ segment }) => segment);
   return (
-    <blockquote className={`quote ${quoteSize(chars.length)}`} data-testid="quote-text" data-layout={layout}>
+    <blockquote className={`quote ${quoteSize(chars.length)}`} data-testid="quote-text">
       <span className="sr-only">{content}</span>
       <span aria-hidden="true">
         {toRuns(chars).map((run, runIndex) => (
@@ -59,10 +61,10 @@ export function QuoteType({ content, layout = "horizontal" }: { content: string;
   );
 }
 
-export function QuoteSheet({ quote, layout = "horizontal" }: { quote: Quote; layout?: QuoteLayout }) {
+export function QuoteSheet({ quote }: { quote: Quote }) {
   return (
-    <article className="sheet" data-layout={layout} style={stockOf(quote.category.key)}>
-      <QuoteType content={quote.content} layout={layout} />
+    <article className="sheet" style={stockOf(quote.category.key)}>
+      <QuoteType content={quote.content} />
       <footer className="sheet-source">
         <span>{quote.source_from}</span>
         <span>{categoryName(quote.category.key)}</span>
@@ -82,5 +84,30 @@ export function SheetBlank({ children }: { children?: React.ReactNode }) {
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * "—— 提交者‧出處", in the same place under every quote; in a list, the submitter's picture stands before the name. On a
+ * card, whose top carries the source, the name is followed by the day it was submitted instead (`dated`).
+ */
+export function QuoteCredit({ quote, avatar = false, dated = false }: { quote: Pick<Quote, "submitter" | "source_from" | "created_at">; avatar?: boolean; dated?: boolean }) {
+  return (
+    <p className="credit" data-avatar={avatar || undefined}>
+      {avatar ? <Avatar url={quote.submitter.avatar_url} name={quote.submitter.username} size={22} /> : <span aria-hidden="true">—— </span>}
+      <SubmitterName submitter={quote.submitter} />
+      <span aria-hidden="true">‧</span>
+      {dated ? (
+        <>
+          <span className="sr-only">，提交於：</span>
+          <time dateTime={quote.created_at}>{formatDate(quote.created_at)}</time>
+        </>
+      ) : (
+        <>
+          <span className="sr-only">，出處：</span>
+          <cite>{quote.source_from}</cite>
+        </>
+      )}
+    </p>
   );
 }

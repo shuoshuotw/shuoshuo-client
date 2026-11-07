@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@heroui/react";
+import { ChevronsDown, RotateCw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { ListStatus } from "@/lib/use-paged-list";
 
@@ -33,9 +35,16 @@ export function ListFooter({ status, hasMore, empty, loadMore, auto = true }: Pr
   return (
     <div className="list-footer" ref={sentinel}>
       {status === "error" && <p role="alert">下一頁沒有載入成功。</p>}
-      <button type="button" className="button" disabled={status === "more"} onClick={() => void loadMore()}>
+      <Button
+        radius="full"
+        variant="bordered"
+        data-magnet
+        isLoading={status === "more"}
+        startContent={status === "more" ? undefined : status === "error" ? <RotateCw aria-hidden="true" size={18} /> : <ChevronsDown aria-hidden="true" size={18} />}
+        onPress={() => void loadMore()}
+      >
         {status === "more" ? "載入中" : status === "error" ? "重試" : "載入更多"}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 /* ---------- shared ---------- */
 
+/* Buttons that are not HeroUI's (a few forms and dialogs) wear the same pills: glass with a hairline, ink when primary */
 .button {
   display: inline-flex;
   align-items: center;
@@ -7,30 +8,39 @@
   gap: var(--space-2);
   min-height: 44px;
   padding: 0 var(--space-5);
-  background: var(--sunk);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  background: var(--glass);
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out),
+    opacity var(--duration-quick) var(--ease-out);
 }
 
 .button:hover:not(:disabled) {
+  border-color: var(--line-strong);
   background: var(--surface);
 }
 
-.button-primary {
+.button-primary,
+.button-primary:hover:not(:disabled) {
+  border-color: var(--action);
   background: var(--action);
   color: var(--action-ink);
 }
 
 .button-primary:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--accent-ink);
+  opacity: 0.88;
 }
 
 .button svg,
 .tool svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .button:disabled,
@@ -48,16 +58,13 @@
   gap: var(--space-2);
   min-width: 44px;
   min-height: 44px;
+  border-radius: var(--radius-full);
   cursor: pointer;
+  transition: background-color var(--duration-quick) var(--ease-out);
 }
 
 .tool:hover:not(:disabled) {
-  background: var(--sunk);
-}
-
-.tool-count {
-  padding: 0 var(--space-3);
-  font-variant-numeric: tabular-nums;
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
 }
 
 .tool[data-active="true"] {
@@ -68,799 +75,1322 @@
   fill: currentcolor;
 }
 
-.burst-sort {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: var(--accent);
+/* A faint rule under the link, and under the pointer an ink one drawn in from the left (as under a credit) */
+.text-link {
+  font-weight: 500;
+  text-decoration: none;
+  background:
+    linear-gradient(currentcolor, currentcolor) 100% 100% / 0 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) 0 100% / 100% 1px no-repeat;
+  transition: background-size 360ms var(--ease-smooth-out);
+}
+
+.text-link:is(:hover, :focus-visible) {
+  background-position:
+    0 100%,
+    0 100%;
+  background-size:
+    100% 1px,
+    100% 1px;
+}
+
+/* ---------- categories: one glass bar, the chosen one under a pill of its colour (TypeCase) ---------- */
+
+.case-bar {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(16px) saturate(1.4);
+}
+
+/* The row scrolls inside the bar, its fades on the choices and never on the bar. It reaches 18px past the bar's
+   padding on every side (and gives the room back with its margin), so a pulled choice, its ring and its glow keep
+   inside the row's clip. Only the choices take the pointer, not that margin */
+.case-scroll {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  margin: -18px;
+  padding: 18px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
   pointer-events: none;
 }
 
-.text-link {
-  text-decoration: underline;
-  font-weight: 700;
+.case-scroll > .case-option {
+  pointer-events: auto;
 }
 
-.section-title {
-  font-size: clamp(24px, 1.6rem + 1.4vw, 48px);
-  font-weight: 700;
-  line-height: 1.35;
-  letter-spacing: 0.01em;
+/* Its fades end at the bar's own inner edge, not out in the margin the row reaches into, where the choices would run
+   past the bar's border before they faded */
+.case-scroll[data-right-scroll="true"] {
+  mask-image: linear-gradient(90deg, #000 calc(100% - 58px), transparent calc(100% - 18px));
 }
 
-/* ---------- header ---------- */
+.case-scroll[data-left-scroll="true"] {
+  mask-image: linear-gradient(270deg, #000 calc(100% - 58px), transparent calc(100% - 18px));
+}
 
-.page-body {
+.case-scroll[data-left-right-scroll="true"] {
+  mask-image: linear-gradient(90deg, transparent 18px, #000 58px, #000 calc(100% - 58px), transparent calc(100% - 18px));
+}
+
+.case-bar .nav-pill {
+  top: 18px;
+  bottom: 18px;
+  background: color-mix(in oklab, var(--case-stock) 34%, var(--surface));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--case-stock) 55%, transparent),
+    0 8px 18px -12px color-mix(in oklab, var(--case-stock) 90%, transparent);
+  transition:
+    transform 520ms var(--ease-spring),
+    width 520ms var(--ease-spring),
+    background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    opacity var(--duration-quick) var(--ease-in-out),
+    translate 480ms var(--ease-spring),
+    scale 480ms var(--ease-spring);
+}
+
+.case-option {
   position: relative;
   z-index: 1;
-  background: var(--ground);
+  flex: none;
+  min-width: 0;
+  height: 40px;
+  gap: 6px;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.site-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
-  height: 64px;
-  padding: 0 var(--frame);
-}
-
-.wordmark {
-  font-size: 24px;
+.case-option[data-active="true"] {
+  color: var(--ink);
   font-weight: 700;
-  letter-spacing: 0.01em;
 }
 
-.site-nav {
-  display: none;
-  gap: var(--space-5);
+.case-option .category-icon {
+  color: color-mix(in oklab, var(--case-stock) 70%, var(--ink));
 }
 
-.site-nav a:hover {
-  text-decoration: underline;
-}
-
-.site-tools {
-  display: flex;
+/* Positioned, so its hidden radio is held inside it: held by the body instead, the radio sat outside the page's
+   scroller, and focusing it on a click scrolled the whole document out from under the fixed header */
+.case-cell {
+  position: relative;
+  display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--space-2);
-  margin-left: auto;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--glass);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-in-out),
+    border-color var(--duration-fast) var(--ease-in-out),
+    color var(--duration-fast) var(--ease-in-out);
 }
 
-.slogan {
-  padding: 0 var(--frame) var(--space-3);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.6;
+.case-cell svg {
   color: var(--muted);
 }
 
-/* ---------- stage ---------- */
-
-.stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "paper"
-    "actions";
-  gap: var(--space-3);
-  padding: 0 var(--frame);
-}
-
-.stage-case {
-  display: none;
-  grid-area: case;
-}
-
-.stage-paper {
-  grid-area: paper;
-  min-width: 0;
-}
-
-.sheet {
-  --stock: var(--stock-other);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  justify-content: space-between;
-  min-height: min(68svh, 640px);
-  padding: var(--space-5);
-  background: var(--stock);
-  color: var(--stock-ink);
-}
-
-/* Centred inside a box that keeps its size: a font swap rewraps the type without moving the box (MO-10) */
-.sheet .quote {
-  display: grid;
-  flex: 1;
-  align-content: center;
-}
-
-.sheet-source {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.sheet[data-layout="vertical"] .quote {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  height: 56svh;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.sheet-blank {
-  align-items: flex-start;
-  justify-content: center;
-  background: var(--sunk);
-  color: var(--ink);
-}
-
-.sheet-note {
-  font-size: clamp(24px, 3vw, 40px);
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.skeleton-lines {
-  display: grid;
-  gap: var(--space-5);
-  width: 100%;
-}
-
-.skeleton-lines > span {
-  height: clamp(40px, 8vw, 112px);
-  background: var(--ground);
-}
-
-.skeleton-lines > span:last-child {
-  width: 60%;
-}
-
-.char,
-.char-run {
-  display: inline-block;
-}
-
-.char-run {
-  white-space: nowrap;
-}
-
-.action-bar {
-  grid-area: actions;
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-  margin: 0 calc(var(--frame) * -1);
-  padding: var(--space-2) var(--frame) calc(var(--space-2) + env(safe-area-inset-bottom));
-  background: var(--ground);
-}
-
-.action-bar .button-primary {
-  flex: 1 0 100%;
-}
-
-.action-gap {
-  flex: 1;
-}
-
-.tool-label,
-.action-detail {
-  display: none;
-}
-
-.case-drawer {
-  padding-bottom: var(--space-5);
-}
-
-/* ---------- type case ---------- */
-
-.type-case {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-1);
-}
-
-.case-cell {
-  display: grid;
-  place-items: center;
-  min-height: 44px;
-  padding: var(--space-1);
-  background: var(--sunk);
-  color: var(--ink);
-  font-size: 14px;
-  line-height: 1.3;
-  cursor: pointer;
+.case-cell .category-icon {
+  color: color-mix(in oklab, var(--stock) 62%, var(--ink));
 }
 
 .case-cell:hover {
+  border-color: var(--line-strong);
   background: var(--surface);
 }
 
+/* Chosen: the chip fills with its colour and the dot swells inside a ring of it */
 .case-cell[data-on="true"],
 .case-cell[data-on="true"]:hover {
-  background: var(--stock, var(--action));
-  color: var(--stock-ink);
+  border-color: color-mix(in oklab, var(--stock, var(--ink)) 70%, transparent);
+  background: color-mix(in oklab, var(--stock, var(--ink)) 30%, var(--surface));
   font-weight: 700;
 }
 
 .case-cell:not([style])[data-on="true"],
 .case-cell:not([style])[data-on="true"]:hover {
+  border-color: var(--action);
   background: var(--action);
   color: var(--action-ink);
 }
 
-/* ---------- curl ---------- */
+.case-cell:not([style])[data-on="true"] svg {
+  color: inherit;
+}
 
-.curl {
+/* ---------- 404 and 500: the category chips with one gone ---------- */
+
+/* The picture and the words as one group in the middle of the screen below the header (over .page-main's own height) */
+.page-main.missing {
   display: grid;
-  gap: var(--space-6);
-  margin-top: var(--section-gap);
-  padding: var(--space-7) var(--frame);
-  background: var(--surface);
-}
-
-.curl-note {
-  max-width: 34em;
-  margin-top: var(--space-3);
-}
-
-.terminal {
-  display: grid;
-  gap: var(--space-4);
-  margin-top: var(--space-5);
-  padding: var(--space-5);
-  background: var(--action);
-  color: var(--action-ink);
-}
-
-.terminal pre {
-  overflow-x: auto;
-  font-family: var(--font-code);
-  font-size: 14px;
-  line-height: 1.6;
-  letter-spacing: 0;
-}
-
-.terminal-output {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  opacity: 0.8;
-}
-
-.terminal-copy {
-  justify-self: start;
-  background: var(--action-ink);
-  color: var(--action);
-}
-
-.terminal-copy:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
-.curl-picture,
-.plate-picture,
-.api-picture,
-.invite-picture {
-  position: relative;
-  min-height: 280px;
-  overflow: hidden;
-}
-
-/* Colour is reserved for the paper: photographs stay in the grey of the workbench */
-.curl-picture img,
-.plate-picture img,
-.api-picture img,
-.invite-picture img {
-  object-fit: cover;
-  filter: grayscale(1) contrast(1.05);
-}
-
-/* ---------- latest ---------- */
-
-.spines {
-  margin-top: var(--section-gap);
-  padding: 0 var(--frame);
-}
-
-.spines-deck {
-  display: grid;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
-}
-
-.spine-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-6);
-  min-height: 220px;
-  padding: var(--space-5);
-  background: var(--stock);
-  color: var(--stock-ink);
-}
-
-.spine-meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-5);
-}
-
-.spines-more {
-  margin-top: var(--space-5);
-}
-
-/* ---------- plate ---------- */
-
-.plate {
-  display: grid;
-  gap: var(--space-6);
-  margin-top: var(--section-gap);
-  padding: 0 var(--frame);
-}
-
-.plate-text p {
-  max-width: 34em;
-  margin-top: var(--space-3);
-}
-
-.plate-engraving {
-  position: relative;
-  width: 200px;
-  height: 200px;
-  margin-top: var(--space-6);
-  margin-bottom: var(--space-7);
-  background: var(--surface);
-}
-
-.plate-engraving img {
-  object-fit: contain;
-  mix-blend-mode: multiply;
-  padding: var(--space-2);
-}
-
-.dark .plate-engraving {
-  background: var(--stock-other);
-}
-
-.plate-engraving figcaption {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 240px;
-  padding-top: var(--space-2);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-/* ---------- api slip ---------- */
-
-.api {
-  display: grid;
-  gap: var(--space-6);
-  margin-top: var(--section-gap);
-  padding: var(--space-7) var(--frame);
-  background: var(--sunk);
-}
-
-.api-intro p {
-  max-width: 32em;
-  margin-top: var(--space-3);
-}
-
-.api-picture {
-  margin-top: var(--space-5);
-}
-
-.slip {
-  padding: var(--space-5) var(--space-5) var(--space-7);
-  background: var(--surface);
-  font-variant-numeric: tabular-nums;
-}
-
-.slip-group + .slip-group {
-  margin-top: var(--space-5);
-}
-
-.slip-group h3 {
-  font-weight: 700;
-}
-
-.slip-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
-.slip-row dt {
-  flex: none;
-  max-width: 62%;
-}
-
-.slip-row dd {
-  flex: none;
-  margin-left: auto;
-  text-align: right;
-}
-
-.slip-row::after {
-  content: "";
-  order: 1;
-  flex: 1;
-  min-width: var(--space-4);
-  border-bottom: 3px dotted var(--muted);
-}
-
-.slip-row dd {
-  order: 2;
-  margin-left: 0;
-}
-
-.slip-total {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin: var(--space-5) calc(var(--space-5) * -1) 0;
-  padding: var(--space-2) var(--space-5);
-  background: var(--action);
-  color: var(--action-ink);
-  font-weight: 700;
-}
-
-/* ---------- invite ---------- */
-
-.invite {
-  display: grid;
-  gap: var(--space-3);
-  margin-top: var(--section-gap);
-  padding: 0 var(--frame) var(--section-gap);
-}
-
-.invite-paper {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  justify-items: center;
+  align-content: center;
   gap: var(--space-5);
-  padding: var(--space-6);
-  background: var(--stock-original);
-  color: var(--stock-ink);
-}
-
-.invite-paper .button-primary,
-.invite-paper .button-primary:hover:not(:disabled) {
-  background: var(--stock-ink);
-  color: var(--stock-paper);
-}
-
-.invite-terms {
-  font-size: 18px;
-}
-
-/* ---------- footer: the back of the sheet ---------- */
-
-.site-footer {
-  padding: var(--space-7) var(--frame) var(--space-4);
-  background: var(--surface);
-  overflow: hidden;
-}
-
-.footer-columns {
-  display: grid;
-  gap: var(--space-5);
-}
-
-.footer-columns nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-5);
-  font-weight: 700;
-}
-
-.footer-credits {
-  max-width: 44em;
-  overflow-wrap: anywhere;
-}
-
-.footer-credits a {
-  text-decoration: underline;
-}
-
-.footer-mark {
-  margin-top: var(--space-6);
-  font-size: 46vw;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
-/* ---------- 404 ---------- */
-
-.missing {
-  display: grid;
-  gap: var(--space-6);
-  align-items: center;
-  min-height: 70svh;
-  padding: var(--space-7) var(--frame);
-}
-
-.missing p {
-  margin: var(--space-3) 0 var(--space-5);
+  min-height: 100svh;
+  padding: var(--header-space) var(--frame) var(--space-6);
+  text-align: center;
 }
 
 .missing-case {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  max-width: 640px;
 }
 
 .missing-case .case-cell {
   cursor: default;
 }
 
-.missing-case [data-gone="true"] {
-  background: var(--accent-tint);
+.missing-case .case-cell:hover {
+  border-color: var(--line);
+  background: var(--glass);
 }
 
-/* ---------- md ---------- */
-
-@media (min-width: 768px) {
-  .site-nav {
-    display: flex;
-  }
-
-  .stage {
-    grid-template-areas:
-      "case"
-      "paper"
-      "actions";
-  }
-
-  .stage-case {
-    display: block;
-  }
-
-  .stage-case .type-case {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-  }
-
-  .tool-case {
-    display: none;
-  }
-
-  .tool-label,
-  .action-detail {
-    display: inline;
-  }
-
-  .action-bar {
-    position: static;
-    margin: 0;
-    padding: 0;
-  }
-
-  .action-bar .button-primary {
-    flex: none;
-  }
-
-  .action-detail {
-    margin-left: var(--space-3);
-  }
-
-  .sheet {
-    padding: var(--space-6);
-  }
-
-  .curl {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  }
-
-  .plate {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  }
-
-  .api {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .invite {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  }
-
-  .invite-picture {
-    min-height: 420px;
-  }
-
-  .missing {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .footer-columns {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  }
+/* The missing one keeps its place as an outline, and the caret waits in it */
+.missing-case [data-gone="true"],
+.missing-case [data-gone="true"]:hover {
+  width: 84px;
+  justify-content: center;
+  border: 1.5px dashed color-mix(in oklab, var(--brand-red) 60%, transparent);
+  background: color-mix(in oklab, var(--brand-red) 6%, transparent);
 }
 
-/* ---------- lg: the final composition ---------- */
-
-@media (min-width: 1024px) {
-  .stage {
-    grid-template-columns: 168px minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "case paper"
-      "case actions";
-    column-gap: var(--space-5);
-    height: calc(100svh - 64px - 34px - var(--space-3));
-    min-height: 560px;
-  }
-
-  .stage-case .type-case {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: minmax(44px, 1fr);
-    height: 100%;
-  }
-
-  .stage-paper,
-  .stage-paper .sheet {
-    height: 100%;
-  }
-
-  .sheet {
-    flex-direction: row;
-    gap: var(--space-7);
-    min-height: 0;
-    padding: var(--space-7);
-  }
-
-  .sheet .quote {
-    min-width: 0;
-  }
-
-  .sheet-source {
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-self: flex-start;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    font-size: 16px;
-  }
-
-  .sheet[data-layout="vertical"] {
-    flex-direction: row-reverse;
-  }
-
-  .sheet[data-layout="vertical"] .quote {
-    height: 100%;
-  }
-
-  .spines[data-folding] {
-    height: 300svh;
-  }
-
-  .spines[data-folding] .spines-stage {
-    position: sticky;
-    top: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    height: 100svh;
-  }
-
-  .spines[data-folding] .spines-deck {
-    position: relative;
-    display: block;
-    height: 340px;
-    overflow: hidden;
-  }
-
-  .spines[data-folding] .spine-card {
-    position: absolute;
-    inset: 0;
-    width: calc(100% - 120px * 5);
-    min-height: 0;
-    padding: var(--space-6);
-    cursor: pointer;
-    will-change: transform, clip-path;
-  }
-
-  .footer-mark {
-    font-size: 47vw;
-    margin-bottom: -0.1em;
-  }
-
-  .invite-picture {
-    min-height: 560px;
-  }
-
-  .curl {
-    padding: var(--space-8) var(--frame);
-  }
-
-  .curl-picture {
-    min-height: 480px;
-  }
-
-  .plate-picture {
-    min-height: 620px;
-  }
-
-  .api {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    gap: var(--space-8);
-    padding: var(--space-8) var(--frame);
-  }
-
-  .api-picture {
-    min-height: 360px;
-  }
-
-  .slip {
-    max-width: 560px;
-  }
+.missing-case [data-gone="true"] .caret {
+  height: 18px;
 }
 
-/* ---------- list row ---------- */
+/* Knocked over: every chip lies at its own angle, a little off its line */
+.missing-case[data-fallen] .case-cell {
+  rotate: calc((mod(var(--i, 0) * 7, 11) - 5) * 2.4deg);
+  translate: 0 calc((mod(var(--i, 0) * 5, 7) - 3) * 3px);
+}
+
+.missing-text {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+}
+
+.missing-text p {
+  color: var(--muted);
+}
+
+/* The 404 artwork above the heading; the stickers are drawn white-edged, so they hold on either ground. Its canvas has
+   empty bands above and below the stickers: cropped to them, so the picture and the words centre as one group. The
+   stickers sit low on it (rows 116 to 1018 of 1080), so the crop keeps 24px above and below them, not the middle */
+.missing-art img {
+  display: block;
+  width: min(400px, 76vw);
+  height: auto;
+  aspect-ratio: 1920 / 950;
+  object-fit: cover;
+  object-position: 50% 71%;
+}
+
+/* The caret that waited in the missing chip now waits after the heading, where the missing character would go */
+.missing-text h1 .caret {
+  margin-left: 0.08em;
+}
+
+.missing-poem {
+  color: var(--ink);
+  font-size: 1.05em;
+  font-weight: 500;
+  transition: opacity var(--duration-slow) var(--ease-in-out);
+}
+
+.missing-poem[data-shown="false"] {
+  opacity: 0;
+}
+
+.missing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* ---------- list cards: the home page's hand of cards, laid out flat ---------- */
+
+.rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-4);
+}
 
 .quote-row-item {
   display: grid;
-  gap: var(--space-3);
-  min-height: 120px;
-  padding: var(--space-4) var(--space-5);
-  background: var(--stock, var(--sunk));
-  color: var(--stock-ink);
+  min-width: 0;
 }
 
-.quote-row-item a:hover {
-  text-decoration: underline;
+/* The same face as a card in the hand: a gradient edge the light can run along, a wash where the mouse is, and the
+   category's colour glowing in a corner. A little of the gradient shows through */
+.quote-card {
+  --card-face: color-mix(in oklab, var(--surface) 86%, transparent);
+  --card-glare: color-mix(in oklab, var(--glow) 18%, transparent);
+  --card-edge: color-mix(in oklab, var(--glow) 85%, transparent);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 220px;
+  padding: var(--space-5);
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--radius-card);
+  background:
+    radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), color-mix(in oklab, var(--card-glare) calc(var(--glare-a) * 100%), transparent), transparent 60%) padding-box,
+    linear-gradient(var(--card-face), var(--card-face)) padding-box,
+    radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), color-mix(in oklab, var(--card-edge) calc(var(--glare-a) * 100%), var(--line)), var(--line) 55%) border-box;
+  box-shadow: var(--shadow-soft);
+  transition:
+    --glare-a 420ms var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.dark .quote-card {
+  --card-glare: rgb(255 255 255 / 0.08);
+  --card-edge: rgb(255 255 255 / 0.5);
+}
+
+.quote-card[data-tilt] {
+  --glare-a: 1;
+  box-shadow: var(--shadow-lift);
+}
+
+.quote-card::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  right: -30%;
+  z-index: -1;
+  width: 75%;
+  aspect-ratio: 1;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--glow) 60%, transparent), transparent);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Only a mouse tilts a card: quick to follow, slow and springy to settle */
+@media (pointer: fine) {
+  .quote-card {
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition:
+      transform 600ms var(--ease-spring),
+      --glare-a 420ms var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
+  }
+
+  .quote-card[data-tilt] {
+    transition:
+      transform 160ms var(--ease-out),
+      --glare-a 240ms var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
+  }
+}
+
+/* ---------- the gallery card: a dotted stage for the sentence, a bar of facts beneath (21st, bencho) ---------- */
+
+.bench {
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.bench-stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  aspect-ratio: 4 / 3;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  background:
+    radial-gradient(circle, color-mix(in oklab, var(--ink) 11%, transparent) 1px, transparent 1.3px) 0 0 / 16px 16px,
+    radial-gradient(120% 90% at 50% 110%, color-mix(in oklab, var(--glow) 26%, transparent), transparent 70%);
+}
+
+.bench-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* The source, across the stage's top from its category; the day it came in sits on the bar beneath */
+.bench-source {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bench-stage .quote-row {
+  display: -webkit-box;
+  align-self: center;
+  justify-self: center;
+  overflow: hidden;
+  text-align: center;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+}
+
+.bench-stage[data-size="l"] .quote-row {
+  font-size: clamp(26px, 1.4rem + 0.9vw, 32px);
+  line-height: 1.45;
+}
+
+.bench-stage[data-size="m"] .quote-row {
+  font-size: clamp(21px, 1.1rem + 0.5vw, 24px);
+  line-height: 1.55;
+}
+
+.bench-stage[data-size="s"] .quote-row {
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.bench-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: 52px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface) 72%, transparent);
+  font-size: 13px;
+}
+
+.bench-bar .credit {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-row {
+  overflow-wrap: anywhere;
+}
+
+/* The whole card opens the quote; the name in the credit and the card's own actions sit above that */
+.quote-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.quote-row:focus-visible {
+  outline: none;
+}
+
+:is(.quote-card, .chart-row):has(.quote-row:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+:is(.quote-card, .chart-row) .credit a,
+.quote-actions,
+.quote-card-actions {
+  position: relative;
+  z-index: 1;
 }
 
 .quote-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.quote-card-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The like and the comments, working on the card (QuoteActions); quieter than a toolbar's */
+.quote-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  margin-right: -8px;
+}
+
+.quote-actions .tool-count {
+  min-width: 0;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.quote-actions .tool-count[data-active="true"] {
+  color: var(--accent);
+}
+
+.quote-actions .tool-count[data-kind="favorite"][data-active="true"] {
+  color: var(--warning);
+}
+
+/* In a list the submitter's picture stands before the name */
+.credit[data-avatar] {
   display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.credit[data-avatar] .avatar-blank {
+  font-size: 11px;
+}
+
+.credit[data-avatar] :is(cite, time) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A card of one's own carries its status and its edit and delete on a row of their own */
+.quote-card-actions {
+  display: flex;
+  flex: 1 0 100%;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  font-size: 14px;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-left: calc(var(--space-3) * -1);
+}
+
+/* The row reaches left so a text button's words line up with the picture above; a chip has its own edge, which does */
+.quote-card-actions > .status-chip:first-child {
+  margin-left: var(--space-3);
+}
+
+/* ---------- the trending board: a podium of five, then the chart below it ---------- */
+
+.rows[data-layout="ranking"] {
+  grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+/* The first stands on a stage twice the size, the next four two by two beside it */
+.podium[data-rank="1"] {
+  grid-row: span 2;
+}
+
+/* Fourth and fifth: the same stage, their place quieter than the medals' */
+.podium:is([data-rank="4"], [data-rank="5"]) .podium-place {
+  background: color-mix(in oklab, var(--ink) 10%, var(--surface));
+  color: var(--ink);
+}
+
+@media (max-width: 1023px) {
+  .rows[data-layout="ranking"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .podium[data-rank="1"] {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+
+.podium .quote-card {
+  height: 100%;
+}
+
+.podium .bench-stage {
+  flex: 1;
+  aspect-ratio: auto;
+  min-height: 230px;
+  overflow: hidden;
+}
+
+.podium[data-rank="1"] .bench-stage {
+  min-height: 440px;
+}
+
+.podium[data-rank="1"] .quote-row {
+  font-size: clamp(30px, 1.6rem + 1.3vw, 44px);
+}
+
+.podium .bench-top {
+  position: relative;
+  z-index: 1;
+  justify-content: flex-start;
+}
+
+.podium .quote-row {
+  position: relative;
+}
+
+/* Its place, large and quiet behind the sentence */
+.podium-numeral {
+  position: absolute;
+  right: var(--space-4);
+  bottom: -0.2em;
+  color: color-mix(in oklab, var(--glow) 60%, var(--line-strong));
+  font-size: 132px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Twice the visible width: the glyph masks the inner half (Numeral) */
+.numeral {
+  display: block;
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+}
+
+.numeral text {
+  vector-effect: non-scaling-stroke;
+}
+
+.podium[data-rank="1"] .podium-numeral {
+  color: color-mix(in oklab, var(--brand-red) 55%, transparent);
+  font-size: clamp(180px, 16vw, 260px);
+}
+
+.podium-place {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--action);
+  color: var(--action-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.podium[data-rank="1"] .podium-place {
+  background: var(--brand-red);
+  color: #fff;
+}
+
+/* Sixth place and below: the lines of one chart, joined into a single sheet */
+.chart-row {
+  position: relative;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 40px 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-top-width: 0;
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  transition: background-color var(--duration-quick) var(--ease-out);
+}
+
+.chart-row + .chart-row {
+  margin-top: calc(var(--space-4) * -1);
+}
+
+.rows[data-layout="ranking"] > .chart-row:is(:first-child, :nth-child(6)) {
+  margin-top: var(--space-2);
+  border-top-width: 1px;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+}
+
+.rows[data-layout="ranking"] > .chart-row:last-child {
+  border-bottom-right-radius: var(--radius-card);
+  border-bottom-left-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.rows[data-layout="ranking"] > .chart-row:is(:first-child, :nth-child(6)):last-child {
+  border-radius: var(--radius-card);
+}
+
+.chart-row:hover {
+  background: color-mix(in oklab, var(--glow) 9%, var(--surface));
+}
+
+.chart-rank {
+  color: var(--muted);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.chart-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--glow) 24%, transparent);
+}
+
+.chart-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.chart-row .quote-row {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: clamp(19px, 1rem + 0.5vw, 23px);
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.chart-row .credit {
+  font-size: 13px;
+}
+
+.chart-skeleton .chart-rank {
+  width: 28px;
+  height: 28px;
+}
+
+.chart-skeleton .skeleton-lines {
+  grid-column: 2 / -1;
+  gap: var(--space-2);
+}
+
+.chart-skeleton .skeleton-lines > span {
+  height: 20px;
+  background: var(--sunk);
+}
+
+@media (max-width: 767px) {
+  .rows[data-layout="ranking"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .podium[data-rank="1"] {
+    grid-row: auto;
+  }
+
+  .podium[data-rank="1"] .bench-stage {
+    min-height: 300px;
+  }
+
+  .podium-numeral {
+    font-size: 104px;
+  }
+
+  .podium[data-rank="1"] .podium-numeral {
+    font-size: 150px;
+  }
+
+  .chart-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+    padding: var(--space-4);
+  }
+
+  .chart-icon {
+    display: none;
+  }
+
+  .chart-row .quote-actions {
+    grid-column: 2;
+    justify-self: start;
+    margin-left: -10px;
+  }
+}
+
+/* On a phone every list's cards keep to their sentence: less stage, fewer lines. The first on the podium stays the
+   largest */
+@media (max-width: 639px) {
+  .rows {
+    gap: var(--space-3);
+  }
+
+  .rows .bench-stage {
+    aspect-ratio: auto;
+    gap: var(--space-2);
+    min-height: 0;
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .rows .bench-stage[data-size] .quote-row {
+    font-size: 19px;
+    line-height: 1.5;
+    -webkit-line-clamp: 3;
+  }
+
+  .rows .podium[data-rank="1"] .bench-stage {
+    min-height: 200px;
+  }
+
+  .rows .podium[data-rank="1"] .bench-stage[data-size] .quote-row {
+    font-size: 24px;
+    -webkit-line-clamp: 4;
+  }
+
+  .rows .bench-bar {
+    min-height: 44px;
+    padding: 6px 14px;
+  }
+}
+
+.skeleton-chip {
+  width: 72px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--sunk);
+  animation: pulse 1.6s var(--ease-linear) infinite;
+}
+
+.quote-row-skeleton .bench-stage {
+  align-content: center;
+}
+
+.quote-row-skeleton .skeleton-lines {
+  gap: var(--space-3);
 }
 
 .quote-row-skeleton .skeleton-lines > span {
-  height: 28px;
+  height: 26px;
+  background: var(--sunk);
+}
+
+/* ---------- reveal: a skeleton crossfading into what came in its place (transitions-dev 14) ---------- */
+
+.reveal {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.reveal > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+/* Fading out, the skeleton no longer holds the box open: the box springs to what arrived straight away */
+.reveal[data-phase="revealing"] .reveal-skeleton {
+  position: absolute;
+  inset: 0 0 auto;
+  pointer-events: none;
+  animation: reveal-out var(--duration-slow) var(--ease-in-out) forwards;
+}
+
+.reveal-content[data-enter],
+.reveal[data-phase="loading"] .reveal-skeleton[data-enter] {
+  animation: reveal-in var(--duration-slow) var(--ease-in-out) both;
+}
+
+/* Comments never line up with their skeleton's rows, so the two do not cross: the skeleton has gone before the comments
+   come in, and no avatar or line is seen twice */
+.comments .reveal[data-phase="revealing"] .reveal-skeleton {
+  animation-duration: 180ms;
+}
+
+.comments .reveal-content[data-enter] {
+  animation-delay: 140ms;
+}
+
+@keyframes reveal-out {
+  to {
+    opacity: 0;
+    filter: blur(var(--blur-medium));
+  }
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--blur-medium));
+  }
+}
+/* Reduced motion keeps the reveal: it only fades and blurs, nothing moves, and without it the skeleton stood over the
+   content for the whole reveal */
+@media (prefers-reduced-motion: reduce) {
+  .chart-row {
+    transition-duration: 0ms;
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .chart-row {
+  transition-duration: 0ms;
 }
 
 /* ---------- dialog ---------- */
 
-html:has(.morph-dialog[open]) {
-  overflow: hidden;
-}
-
+/* The dialog stays laid out across the whole screen even while closed, untouchable and with its card hidden, so the
+   morph can measure the card and grow it out of what opened it (dialog-morph.ts). It stays above the page while it
+   closes, when it has already left the top layer (M-04) */
 .morph-dialog {
-  max-width: none;
-  max-height: none;
-  margin: auto;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100vw;
+  height: 100dvh;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
   padding: 0;
+  overflow: visible;
+  border: 0;
   background: transparent;
   color: var(--ink);
+  pointer-events: none;
+}
+
+.morph-dialog[open] {
+  pointer-events: auto;
 }
 
 .morph-dialog::backdrop {
-  background: rgb(0 0 0 / 0.4);
+  background: transparent;
 }
 
+/* The darkening behind the card; the morph fades it, and a press that starts and ends on it closes the dialog */
+.morph-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgb(12 12 14 / 0.32);
+  opacity: 0;
+}
+
+.morph-dialog[open] .morph-scrim {
+  opacity: 1;
+}
+
+.morph-dialog:not([open], [data-morphing]) .morph-card {
+  visibility: hidden;
+}
+
+/* While its card is open, what it grew out of is gone from its place (faded out by the morph) */
+[data-morph-open] {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.button-danger,
+.button-danger:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.button-danger:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+/* A card in the middle of the screen, on a phone as on a desktop. It opens centred, then keeps that top
+   (--card-top) while its contents grow or shrink, so only its bottom edge moves */
 .morph-card {
+  position: relative;
+  width: min(560px, calc(100vw - 32px));
+  margin-top: var(--card-top, 24px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift); /* taste-skill-ignore: a dialog really floats */
+}
+
+.morph-inner {
   display: grid;
   justify-items: start;
   gap: var(--space-4);
-  width: min(560px, calc(100vw - var(--frame) * 2));
-  padding: var(--space-6);
-  background: var(--surface);
-  box-shadow: var(--shadow-float); /* taste-skill-ignore: a dialog really floats */
+  max-height: calc(100dvh - var(--card-top, 24px) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  --pad: var(--space-6);
+  padding: var(--pad);
+}
+
+/* While it grows or shrinks the morph places the card itself, and its contents keep their open size and stay put at
+   its top, so nothing reflows and no scrollbar shows */
+.morph-dialog[data-morphing] .morph-card {
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
+  will-change: transform, width, height;
+}
+
+.morph-dialog[data-morphing] .morph-inner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  overflow: hidden;
+  translate: -50% 0;
+}
+
+@media (max-width: 639px) {
+  .morph-card {
+    border-radius: 28px;
+  }
+
+  .morph-inner {
+    --pad: var(--space-5);
+  }
+}
+
+/* What the dialog asks, above its title on the left: a question sits still, a warning keeps signalling, a ring going
+   out from it and the mark giving a small shake every couple of seconds */
+.dialog-tone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--ink) 7%, transparent);
+  color: var(--muted);
+}
+
+.dialog-tone[data-tone="warning"] {
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.dialog-tone[data-tone="warning"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid color-mix(in oklab, var(--accent) 55%, transparent);
+  border-radius: inherit;
+  animation: tone-ring 2.2s var(--ease-out) infinite;
+}
+
+.dialog-tone[data-tone="warning"] svg {
+  animation: tone-shake 2.2s var(--ease-in-out) infinite;
+}
+
+@keyframes tone-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@keyframes tone-shake {
+  0%,
+  60%,
+  92%,
+  100% {
+    transform: none;
+  }
+
+  68% {
+    transform: rotate(-12deg);
+  }
+
+  76% {
+    transform: rotate(10deg);
+  }
+
+  84% {
+    transform: rotate(-5deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-tone[data-tone="warning"]::after,
+  .dialog-tone[data-tone="warning"] svg {
+    animation: none;
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .dialog-tone[data-tone="warning"]::after,
+:root[data-motion="reduce"] .dialog-tone[data-tone="warning"] svg {
+  animation: none;
+}
+
+/* A button whose words change (MorphDialog labelKey): it eases to its new width and the new words come in */
+[data-label-swap] {
+  overflow: hidden;
+}
+
+.label-swap {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+}
+
+.label-swap[data-changed] {
+  animation: label-in 320ms var(--ease-smooth-out) both;
+}
+
+@keyframes label-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--blur-small));
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .label-swap[data-changed] {
+    animation-name: label-fade;
+  }
+
+  @keyframes label-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .label-swap[data-changed] {
+  animation-name: label-fade;
+}
+
+@keyframes label-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+/* The title and the X that closes it, on one line */
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.dialog-close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px -12px -8px 0;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    color var(--duration-quick) var(--ease-out);
+}
+
+.dialog-close:hover {
+  background: color-mix(in oklab, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+
+.dialog-close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The comments: the sentence and the composer stay at the top, and only the comments scroll beneath them. The card is
+   as tall as the screen allows whatever has loaded, so a first open, whose comments arrive while the card grows, lands
+   at its size in one move instead of growing to the skeleton and shrinking back to the comments */
+.comments-dialog .morph-inner {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  justify-items: stretch;
+  height: min(720px, calc(100dvh - var(--card-top, 24px) - 24px));
+  overflow: hidden;
+}
+
+@media (max-width: 639px) {
+  .comments-dialog .morph-inner {
+    height: calc(100dvh - var(--card-top, 24px) - 24px);
+  }
+}
+
+.comments-dialog .comments {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+/* Out to the card's sides and its foot, so the comments scroll under the card's own edges and fade there */
+.comment-scroll {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-height: 0;
+  margin: 0 calc(var(--pad) * -1) calc(var(--pad) * -1);
+  padding: var(--space-2) var(--pad) var(--pad);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The sentence the comments belong to, on a stage of its own category's colour. Centred, and a long one scrolls in
+   its box; the whole box is the way to the quote's page */
+.comments-quote {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: min(28dvh, 200px);
+  padding: var(--space-5) var(--space-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid color-mix(in oklab, var(--glow) 24%, var(--line));
+  border-radius: var(--radius-card);
+  background:
+    radial-gradient(circle, color-mix(in oklab, var(--ink) 9%, transparent) 1px, transparent 1.3px) 0 0 / 16px 16px,
+    radial-gradient(120% 120% at 50% 120%, color-mix(in oklab, var(--glow) 26%, transparent), transparent 70%),
+    color-mix(in oklab, var(--glow) 6%, var(--surface));
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color var(--duration-quick) var(--ease-out);
+}
+
+.comments-quote:hover {
+  border-color: color-mix(in oklab, var(--glow) 55%, var(--line));
+}
+
+.comments-quote:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Auto margins centre a short sentence and leave a long one's first line at the top, where the scroll starts */
+.comments-quote-text {
+  margin-block: auto;
+  font-size: 20px;
+  line-height: 1.6;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.comments-quote-go {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--muted);
+  opacity: 0;
+  translate: -3px 3px;
+  transition:
+    opacity var(--duration-quick) var(--ease-out),
+    translate var(--duration-fast) var(--ease-smooth-out);
+}
+
+.comments-quote:is(:hover, :focus-visible) .comments-quote-go {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* One line to write on and the button beside it; the line grows with what is written, up to five lines */
+.comment-form {
+  gap: var(--space-2);
+}
+
+.comment-compose {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+textarea.comment-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  max-height: 172px;
+  line-height: 1.6;
+  resize: none;
+}
+
+.comment-compose .send-button {
+  flex: none;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+}
+
+/* The paper plane flies off to the top right under the pointer and glides back in from the bottom left */
+@keyframes send-fly {
+  45% {
+    opacity: 0;
+    transform: translate(14px, -14px) rotate(-8deg);
+  }
+
+  46% {
+    opacity: 0;
+    transform: translate(-12px, 12px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (hover: hover) {
+  .send-button:hover:not(:disabled) .send-icon {
+    animation: send-fly 620ms var(--ease-smooth-out);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .send-button .send-icon {
+    animation: none !important;
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .send-button .send-icon {
+  animation: none !important;
+}
+
+/* In the dialog the card is the sheet already */
+.morph-card .comments {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.tool-sm {
+  min-height: 34px;
 }
 
 .success-check {

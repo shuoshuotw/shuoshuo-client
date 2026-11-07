@@ -69,19 +69,21 @@ test("a case already decided elsewhere says so and offers the next", async ({ pa
   const found = (body!.data as unknown as { id: string; target_id: string }[]).find(({ target_id }) => target_id === id)!;
 
   await page.goto(`/admin/cases/${found.id}`);
-  await expect(page.getByRole("button", { name: "駁回案件" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "撤銷檢舉" })).toBeVisible();
   expect((await coreCall(`/v1/admin/cases/${found.id}/resolve`, { method: "POST", token, body: { resolution: "dismiss" } })).status).toBe(200);
 
-  await page.getByRole("button", { name: "駁回案件" }).click();
+  await page.getByRole("button", { name: "撤銷檢舉" }).click();
   await expect(page.locator(".form-error")).toContainText("此案件已處理");
   await expect(page.getByRole("button", { name: "前往下一件" })).toBeVisible();
 });
 
 test("someone who is not an admin sees no back office", async ({ page }) => {
   await signIn(page, await newUser());
-  await page.goto("/admin/cases");
-  await expect(page.getByText("這裡只有管理員能進來")).toBeVisible();
-  await expect(page.getByRole("link", { name: "管理後台" })).toHaveCount(0);
+  const response = await page.goto("/admin/cases");
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1, name: "這一格缺字" })).toBeVisible();
+  await page.goto("/me");
+  await expect(page.getByRole("link", { name: "審核佇列" })).toHaveCount(0);
 });
 
 test("the whole way: uphold, barred from submitting, notice, appeal, accepted", async ({ browser }) => {
@@ -108,32 +110,33 @@ test("the whole way: uphold, barred from submitting, notice, appeal, accepted", 
   // The notice on /me, and the reason it leads to
   await offenderPage.goto("/me");
   await expect(offenderPage.getByRole("status")).toContainText("1 筆處分通知");
-  await expect(offenderPage.getByText(/暫停提交至/)).toBeVisible();
+  await expect(offenderPage.getByText(/^直至 .+，你無法發表新的說說$/)).toBeVisible();
   await offenderPage.getByRole("link", { name: "查看內容與申訴" }).click();
   await offenderPage.waitForURL("**/me/standing");
   await expect(offenderPage.getByText("確認違規（第 1 次）")).toBeVisible();
 
   // §12.7: submitting is replaced with the reason and the way to appeal
   await offenderPage.goto("/submit");
-  await expect(offenderPage.getByRole("heading", { level: 1, name: "目前無法提交" })).toBeVisible();
+  await expect(offenderPage.getByRole("heading", { level: 1, name: "提交一句" })).toBeVisible();
+  await expect(offenderPage.getByText("暫停提交", { exact: true })).toBeVisible();
   await expect(offenderPage.getByRole("link", { name: "查看原因與申訴" })).toBeVisible();
 
   await offenderPage.goto("/me/standing");
   await offenderPage.getByRole("button", { name: "提出申訴" }).click();
-  const dialog = offenderPage.getByRole("dialog", { name: "提出申訴" });
+  const dialog = offenderPage.getByRole("dialog", { name: "對處分提出申訴？" });
   await dialog.getByLabel("申訴內容").fill("太短");
-  await dialog.getByRole("button", { name: "送出申訴" }).click();
-  await expect(dialog.getByText("申訴內容須為 20 至 1000 字")).toBeVisible();
+  await dialog.getByRole("button", { name: "提交申訴" }).click();
+  await expect(offenderPage.getByText("申訴內容須為 20 至 1000 字")).toBeVisible();
   await dialog.getByLabel("申訴內容").fill("這句是我自己寫的，並沒有重複張貼，請協助重新審視這次的判斷。");
-  await dialog.getByRole("button", { name: "送出申訴" }).click();
+  await dialog.getByRole("button", { name: "提交申訴" }).click();
   await expect(offenderPage.getByRole("button", { name: "提出申訴" })).toHaveCount(0);
-  await expect(offenderPage.getByText("審理中").first()).toBeVisible();
+  await expect(offenderPage.getByText("審核中").first()).toBeVisible();
 
   await moderatorPage.goto("/admin/appeals");
   const card = moderatorPage.locator(".appeal-card", { hasText: "並沒有重複張貼" });
   await card.getByRole("button", { name: "接受申訴" }).click();
-  await expect(card.getByText("請寫下給申訴者的說明")).toBeVisible();
-  await card.getByLabel("給申訴者的說明").fill("確認判斷有誤，已恢復。");
+  await expect(card.getByText("請說明原因，1 至 1000 字")).toBeVisible();
+  await card.getByLabel("說明原因").fill("確認判斷有誤，已恢復。");
   await card.getByRole("button", { name: "接受申訴" }).click();
   await expect(card).toHaveCount(0);
 
@@ -186,9 +189,9 @@ test("the audit log filters by action and opens its details", async ({ page }) =
   await signIn(page, moderator);
   await page.goto("/admin/audit");
   await page.getByLabel("動作").selectOption("case.resolve");
-  await page.getByLabel("目標 ID").fill(found.id);
+  await page.getByLabel("操作目標 ID").fill(found.id);
   await expect(page.getByRole("row")).toHaveCount(2);
-  await expect(page.getByRole("cell", { name: "case.resolve" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "處理檢舉" })).toBeVisible();
   await page.getByText("查看").click();
   await expect(page.locator(".audit-metadata")).toContainText("dismiss");
 });

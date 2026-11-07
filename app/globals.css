@@ -3,18 +3,21 @@
 @import "../styles/motion.css";
 @import "../styles/components.css";
 @import "../styles/pages.css";
+@import "../styles/chrome.css";
+@import "../styles/home.css";
 @plugin "../hero.ts";
 @source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
 @custom-variant dark (&:is(.dark *));
 
+/* The ground is the root's, not the body's: a body background would paint over the atmosphere under every page */
 html {
+  background: var(--ground);
   scrollbar-color: var(--muted) var(--ground);
   /* ChenYuLuoYan only ships weight 100; synthesis would fake a bolder cut (R-10) */
   font-synthesis: none;
 }
 
 body {
-  background: var(--ground);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 16px;
@@ -58,7 +61,3 @@ a {
   line-height: 1.45;
 }
 
-.quote-row {
-  font-size: clamp(20px, 2.5vw, 28px);
-  line-height: 1.5;
-}

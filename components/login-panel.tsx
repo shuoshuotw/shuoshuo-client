@@ -1,16 +1,30 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { Button, Spinner } from "@heroui/react";
+import { KeyRound } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FcGoogle } from "react-icons/fc";
 import { browserAuth } from "@/lib/api/browser";
+import { markReturn } from "@/lib/navigation";
 import { NEXT_COOKIE, safeNext } from "@/lib/safe-next";
+import { notify } from "@/lib/toast";
+import { DiscordIcon, GitHubIcon } from "./brand-icons";
 import { FormError } from "./form";
+import { Logo } from "./logo";
 
 export const PROVIDERS = [
   { key: "google", name: "Google" },
   { key: "discord", name: "Discord" },
   { key: "github", name: "GitHub" },
 ] as const;
+
+// Each sign-in shows its own mark: Google's in its colours, Discord's in its blurple, GitHub's in the page's ink
+export const MARKS = {
+  google: <FcGoogle aria-hidden="true" size={20} />,
+  discord: <DiscordIcon aria-hidden="true" size={20} className="mark-discord" />,
+  github: <GitHubIcon aria-hidden="true" size={20} />,
+};
 
 const ERRORS: Record<string, string> = {
   account_blocked: "這個帳號因違反規範已被停權，無法再次註冊。如有疑問，請先登入原帳號提出申訴。",
@@ -27,6 +41,7 @@ export function rememberNext(next: string) {
 }
 
 export function LoginPanel() {
+  const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
   const reauth = params.get("reauth") === "1";
@@ -44,6 +59,7 @@ export function LoginPanel() {
     setBusy(provider);
     setError(null);
     rememberNext(next);
+    if (reauth) markReturn();
     const auth = await browserAuth();
     const { error: failure } = await auth.signInWithOAuth({ provider, options: { redirectTo: `${location.origin}/auth/callback` } });
     if (failure) {
@@ -59,29 +75,57 @@ export function LoginPanel() {
     const { error: failure } = await auth.signInWithPasskey();
     if (failure) {
       // AU-03: D-06, a passkey never creates an account
-      setError("Passkey 登入沒有完成。Passkey 必須先綁定：第一次請用 Google、Discord 或 GitHub 登入，再到安全設置新增。");
+      void notify("PassKey 登入失敗", "failed");
       setBusy(null);
       return;
     }
-    // A full load, so the header and the session store start from the new cookie
-    location.assign(next);
+    // Verified again as the same person: back to the page within the app, its own page change and all. A first sign-in
+    // loads in full, so the header and the session store start from the new cookie
+    if (reauth) {
+      markReturn();
+      router.replace(next);
+    } else location.assign(next);
   };
 
   return (
     <div className="login-panel">
+      <Logo size={44} />
       <h1 className="section-title">{reauth ? "重新驗證身分" : "登入說說"}</h1>
-      <p>{reauth ? "這個操作需要你剛驗證過身分。用任一方式再登入一次，就會回到原本的頁面。" : "說說不開放 Email 註冊。用下面任一個帳號登入，第一次登入時就會建立帳號。"}</p>
+      <p>{reauth ? "此操作需要你在 10 分鐘內驗證過身分。" : "選擇一種方式來登入 / 註冊您的說說帳號"}</p>
       <FormError>{error}</FormError>
       <div className="login-buttons">
         {PROVIDERS.map(({ key, name }) => (
-          <button key={key} type="button" className="button button-primary" disabled={busy !== null} onClick={() => void withProvider(key)}>
+          <Button
+            key={key}
+            radius="full"
+            size="lg"
+            variant="bordered"
+            className="login-button"
+            spinner={<Spinner size="sm" color="current" />}
+            data-magnet
+            isDisabled={busy !== null && busy !== key}
+            isLoading={busy === key}
+            startContent={busy === key ? undefined : MARKS[key]}
+            onPress={() => void withProvider(key)}
+          >
             {busy === key ? "前往中" : `使用 ${name} 登入`}
-          </button>
+          </Button>
         ))}
         {passkey && (
-          <button type="button" className="button" disabled={busy !== null} onClick={() => void withPasskey()}>
+          <Button
+            radius="full"
+            size="lg"
+            variant="light"
+            className="login-button"
+            spinner={<Spinner size="sm" color="current" />}
+            data-magnet
+            isDisabled={busy !== null && busy !== "passkey"}
+            isLoading={busy === "passkey"}
+            startContent={busy === "passkey" ? undefined : <KeyRound aria-hidden="true" size={20} />}
+            onPress={() => void withPasskey()}
+          >
             {busy === "passkey" ? "等待驗證" : "使用 Passkey 登入"}
-          </button>
+          </Button>
         )}
       </div>
       {!passkey && <p className="field-hint">這個瀏覽器不支援 Passkey，可以用上面三種方式登入。</p>}

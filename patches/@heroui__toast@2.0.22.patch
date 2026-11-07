@@ -1,0 +1,132 @@
+diff --git a/dist/chunk-6UEQ2CPX.mjs b/dist/chunk-6UEQ2CPX.mjs
+index 33d00000007ac79c9b008fc5fc24cace19b369fa..e6c0abbc9b4827d85076da039fac98a776b455f7 100644
+--- a/dist/chunk-6UEQ2CPX.mjs
++++ b/dist/chunk-6UEQ2CPX.mjs
+@@ -165,13 +165,15 @@ function useToast(originalProps) {
+     const newHeight = toastNode.getBoundingClientRect().height + marginTop + marginBottom;
+     toastNode.style.height = originalHeight;
+     setInitialHeight((prevHeight) => prevHeight !== newHeight ? newHeight : prevHeight);
+-    const updatedHeights = [...heights];
++    setHeights((current) => {
++    const updatedHeights = [...current];
+     if (updatedHeights.length > index) {
+       updatedHeights[index] = newHeight;
+     } else {
+       updatedHeights.push(newHeight);
+     }
+-    setHeights(updatedHeights);
++    return updatedHeights;
++    });
+   }, [mounted, total, setHeights, index, isToastExiting]);
+   let liftHeight = 4;
+   for (let idx = index + 1; idx < total; idx++) {
+diff --git a/dist/index.js b/dist/index.js
+index c870e73e4268e73a1014b38a1167055f3a9ca880..42f60866b5685764c1cc073a0d4955084cf1c2c1 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -797,13 +797,15 @@ function useToast(originalProps) {
+     const newHeight = toastNode.getBoundingClientRect().height + marginTop + marginBottom;
+     toastNode.style.height = originalHeight;
+     setInitialHeight((prevHeight) => prevHeight !== newHeight ? newHeight : prevHeight);
+-    const updatedHeights = [...heights];
++    setHeights((current) => {
++    const updatedHeights = [...current];
+     if (updatedHeights.length > index) {
+       updatedHeights[index] = newHeight;
+     } else {
+       updatedHeights.push(newHeight);
+     }
+-    setHeights(updatedHeights);
++    return updatedHeights;
++    });
+   }, [mounted, total, setHeights, index, isToastExiting]);
+   let liftHeight = 4;
+   for (let idx = index + 1; idx < total; idx++) {
+diff --git a/dist/toast-provider.js b/dist/toast-provider.js
+index 2cc40ad442002bbd6cfa141044d445e03413f721..3507c367cfcfc653cc38d8b0bfbe642ed153a64f 100644
+--- a/dist/toast-provider.js
++++ b/dist/toast-provider.js
+@@ -806,13 +806,15 @@ function useToast(originalProps) {
+     const newHeight = toastNode.getBoundingClientRect().height + marginTop + marginBottom;
+     toastNode.style.height = originalHeight;
+     setInitialHeight((prevHeight) => prevHeight !== newHeight ? newHeight : prevHeight);
+-    const updatedHeights = [...heights];
++    setHeights((current) => {
++    const updatedHeights = [...current];
+     if (updatedHeights.length > index) {
+       updatedHeights[index] = newHeight;
+     } else {
+       updatedHeights.push(newHeight);
+     }
+-    setHeights(updatedHeights);
++    return updatedHeights;
++    });
+   }, [mounted, total, setHeights, index, isToastExiting]);
+   let liftHeight = 4;
+   for (let idx = index + 1; idx < total; idx++) {
+diff --git a/dist/toast-region.js b/dist/toast-region.js
+index 55bf32e7738baa20961ddcb44b3b31f210a97a54..540e2cdfbf5594045404e3407490fd3a713a452c 100644
+--- a/dist/toast-region.js
++++ b/dist/toast-region.js
+@@ -786,13 +786,15 @@ function useToast(originalProps) {
+     const newHeight = toastNode.getBoundingClientRect().height + marginTop + marginBottom;
+     toastNode.style.height = originalHeight;
+     setInitialHeight((prevHeight) => prevHeight !== newHeight ? newHeight : prevHeight);
+-    const updatedHeights = [...heights];
++    setHeights((current) => {
++    const updatedHeights = [...current];
+     if (updatedHeights.length > index) {
+       updatedHeights[index] = newHeight;
+     } else {
+       updatedHeights.push(newHeight);
+     }
+-    setHeights(updatedHeights);
++    return updatedHeights;
++    });
+   }, [mounted, total, setHeights, index, isToastExiting]);
+   let liftHeight = 4;
+   for (let idx = index + 1; idx < total; idx++) {
+diff --git a/dist/toast.js b/dist/toast.js
+index e86248e90cd09ec49bf81b2f04656da39313dd6f..e4e00425134d823745ee5ded8ef082ff894c6a53 100644
+--- a/dist/toast.js
++++ b/dist/toast.js
+@@ -778,13 +778,15 @@ function useToast(originalProps) {
+     const newHeight = toastNode.getBoundingClientRect().height + marginTop + marginBottom;
+     toastNode.style.height = originalHeight;
+     setInitialHeight((prevHeight) => prevHeight !== newHeight ? newHeight : prevHeight);
+-    const updatedHeights = [...heights];
++    setHeights((current) => {
++    const updatedHeights = [...current];
+     if (updatedHeights.length > index) {
+       updatedHeights[index] = newHeight;
+     } else {
+       updatedHeights.push(newHeight);
+     }
+-    setHeights(updatedHeights);
++    return updatedHeights;
++    });
+   }, [mounted, total, setHeights, index, isToastExiting]);
+   let liftHeight = 4;
+   for (let idx = index + 1; idx < total; idx++) {
+diff --git a/dist/use-toast.js b/dist/use-toast.js
+index ee5c8fb45a1db68cfe68af16727d778ea00c17ad..dbed4f235a4a81775be4391dd6f957dad7fbbdd0 100644
+--- a/dist/use-toast.js
++++ b/dist/use-toast.js
+@@ -188,13 +188,15 @@ function useToast(originalProps) {
+     const newHeight = toastNode.getBoundingClientRect().height + marginTop + marginBottom;
+     toastNode.style.height = originalHeight;
+     setInitialHeight((prevHeight) => prevHeight !== newHeight ? newHeight : prevHeight);
+-    const updatedHeights = [...heights];
++    setHeights((current) => {
++    const updatedHeights = [...current];
+     if (updatedHeights.length > index) {
+       updatedHeights[index] = newHeight;
+     } else {
+       updatedHeights.push(newHeight);
+     }
+-    setHeights(updatedHeights);
++    return updatedHeights;
++    });
+   }, [mounted, total, setHeights, index, isToastExiting]);
+   let liftHeight = 4;
+   for (let idx = index + 1; idx < total; idx++) {

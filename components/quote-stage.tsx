@@ -1,60 +1,91 @@
 "use client";
 
-import { Check, ChevronLeft, Columns2, Copy, Rows2, SlidersHorizontal } from "lucide-react";
-import dynamic from "next/dynamic";
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Button } from "@heroui/react";
+import { Check, Copy, PenLine, RotateCw, Shuffle } from "lucide-react";
+import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Quote } from "@/lib/api/client";
-import { notify } from "@/lib/toast";
-import { dropType, flipLayout, pickType } from "@/motion/gsap";
+import { bracketCorners, dropType, moveBrackets, pickType, preloadPick } from "@/motion/gsap";
 import { useQuoteStageStore } from "@/stores/quote-stage";
-import { useUiStore } from "@/stores/ui";
-import { QuoteSheet, SheetBlank } from "./quote-sheet";
+import { CommentsButton } from "./comments-dialog";
+import { useDockSlot } from "./dock-slot";
+import { LinkButton } from "./link-button";
+import { Bracket } from "./logo";
+import { QuoteCredit, QuoteType } from "./quote-sheet";
+import { Reveal } from "./reveal";
 import { ReactionButtons, useQuoteReactions } from "./reaction-buttons";
-import { TypeCase } from "./type-case";
 
-const CaseDrawer = dynamic(() => import("./case-drawer").then((module) => module.CaseDrawer), { ssr: false });
+function StageNote({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="stage-note" data-testid="sheet-blank">
+      <p className="stage-note-title">{title}</p>
+      {children}
+    </div>
+  );
+}
 
-// Vertical setting only holds short quotes on a phone without sideways scrolling (§12.8)
-const fitsVertical = (quote: Quote | null) => !quote || quote.length <= 40 || window.innerWidth >= 640;
+/** The same box as a quote, so the swap to the real sentence moves nothing (MO-09). */
+function StageSkeleton() {
+  return (
+    <div className="stage-skeleton" data-testid="sheet-blank" aria-hidden="true">
+      <span className="skeleton-line" />
+      <span className="skeleton-line" />
+      <span className="skeleton-line skeleton-short" />
+    </div>
+  );
+}
 
 export function QuoteStage({ initial }: { initial: Quote | null }) {
   const stage = useRef<HTMLDivElement>(null);
   const restore = useRef<() => void>(() => {});
   const picked = useRef(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Where the brackets stood when the last draw began, and whether they glided to the new sentence
+  const corners = useRef<{ x: number; y: number }[] | null>(null);
+  const glided = useRef(false);
   const [copied, setCopied] = useState(false);
+  const [spins, setSpins] = useState(0);
+  const slot = useDockSlot();
 
   const current = useQuoteStageStore((state) => state.current) ?? initial;
   const status = useQuoteStageStore((state) => state.status);
-  const historySize = useQuoteStageStore((state) => state.history.length);
-  const categories = useQuoteStageStore((state) => state.categories);
-  const { next, back, toggleCategory, clearCategories, settle, hydrate, restoreFilter } = useQuoteStageStore.getState();
-  const layout = useUiStore((state) => state.layout);
+  const { next, settle, hydrate } = useQuoteStageStore.getState();
+  const category = current?.category.key ?? "other";
 
   useEffect(() => {
     hydrate(initial);
-    restoreFilter();
     // The cached page was built while Core was down: fetch the first quote here instead
     if (!initial) void useQuoteStageStore.getState().next();
-    return useUiStore.getState().connect();
-  }, [hydrate, initial, restoreFilter]);
+  }, [hydrate, initial]);
 
   useQuoteReactions(current);
+
+  // The whole home page takes its light from the quote's category; the cursor's light lives on the body, so the root carries it too
+  useEffect(() => {
+    for (const element of [stage.current?.closest<HTMLElement>(".home"), document.documentElement]) element?.style.setProperty("--tint", `var(--stock-${category})`);
+  }, [category]);
+
+  // Before the new sentence paints, the brackets start from where they held the last one, and the type stays hidden
+  // until M-01 has set its starting state
+  useLayoutEffect(() => {
+    const root = stage.current;
+    glided.current = Boolean(root && corners.current && root.querySelector(".bracket"));
+    if (root && glided.current && corners.current) {
+      root.dataset.hold = "true";
+      moveBrackets(root, corners.current);
+    }
+    corners.current = null;
+  }, [current?.id]);
 
   // M-01 on arrival, once the face is in or 800 ms have passed
   useEffect(() => {
     const root = stage.current;
     if (picked.current || !root) return;
     picked.current = true;
+    preloadPick();
     const show = () => document.documentElement.classList.remove("pick-pending");
     void Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 800))])
-      .then(async () => {
-        const run = pickType(root);
-        // pickType has set the from-state by the time gsap is in, so lifting the mask does not flash
-        requestAnimationFrame(show);
-        await run;
-      })
+      // The mask lifts only once every character holds its starting state, so the sentence never shows whole first
+      .then(() => pickType(root, { onReady: show }))
       .catch(show);
   }, []);
 
@@ -64,12 +95,17 @@ export function QuoteStage({ initial }: { initial: Quote | null }) {
     if (status !== "animating" || !root) return;
     restore.current();
     restore.current = () => {};
-    void pickType(root).catch(() => {}).finally(settle);
+    const release = () => delete root.dataset.hold;
+    void pickType(root, { brackets: !glided.current, onReady: release })
+      .catch(release)
+      .finally(settle);
   }, [current?.id, settle, status]);
 
   const draw = () => {
     const root = stage.current;
+    setSpins((count) => count + 1);
     if (root) {
+      corners.current = root.querySelector(".bracket") ? bracketCorners(root) : null;
       restore.current();
       restore.current = dropType(root);
     }
@@ -81,100 +117,83 @@ export function QuoteStage({ initial }: { initial: Quote | null }) {
     });
   };
 
-  const choose = (key: string) => {
-    toggleCategory(key);
-    draw();
-  };
-  const clear = () => {
-    clearCategories();
-    draw();
-  };
-
-  const switchLayout = () => {
-    const root = stage.current;
-    const wanted = layout === "horizontal" ? "vertical" : "horizontal";
-    if (wanted === "vertical" && !fitsVertical(current)) {
-      void notify("這句說說太長，手機上無法直排");
-      return;
-    }
-    if (root) void flipLayout(root, () => useUiStore.getState().setLayout(wanted));
-  };
-
   const copy = async () => {
     if (!current) return;
-    await navigator.clipboard.writeText(`${current.content}\n——${current.source_from}`);
+    await navigator.clipboard.writeText(current.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   };
 
   const quiet = status === "empty" || status === "error" || !current;
 
-  return (
-    <div className="stage">
-      <aside className="stage-case">
-        <TypeCase selected={categories} onToggle={choose} onClear={clear} />
-      </aside>
-
-      <div className="stage-paper" ref={stage} aria-live="polite" aria-busy={status === "loading"}>
-        {status === "empty" ? (
-          <SheetBlank>
-            <p className="sheet-note">這個字盤是空的</p>
-            <button type="button" className="button" onClick={clear}>
-              清除篩選
-            </button>
-          </SheetBlank>
-        ) : !current && status === "loading" ? (
-          <SheetBlank />
-        ) : status === "error" || !current ? (
-          <SheetBlank>
-            <p className="sheet-note">說說沒有載入成功</p>
-            <button type="button" className="button" onClick={draw}>
-              重試
-            </button>
-          </SheetBlank>
-        ) : (
-          <QuoteSheet quote={current} layout={layout} />
-        )}
-      </div>
-
-      <div className="action-bar">
-        {/* Never disabled: that would throw keyboard focus away on every draw */}
-        <button type="button" className="button button-primary" onClick={draw}>
-          再抽一句
-        </button>
-        <button type="button" className="tool" aria-label="上一句" disabled={historySize === 0} onClick={back}>
-          <ChevronLeft aria-hidden="true" />
-        </button>
-        <button type="button" className="tool tool-case" aria-label="開啟類別字盤" onClick={() => setDrawerOpen(true)}>
-          <SlidersHorizontal aria-hidden="true" />
-        </button>
-        <span className="action-gap" />
-        <button
-          type="button"
-          className="tool tool-count"
-          aria-label={layout === "horizontal" ? "改為直排" : "改為橫排"}
-          data-testid="layout-toggle"
-          onClick={switchLayout}
-        >
-          {layout === "horizontal" ? <Columns2 aria-hidden="true" /> : <Rows2 aria-hidden="true" />}
-          <span className="tool-label">{layout === "horizontal" ? "直排" : "橫排"}</span>
-        </button>
-        <ReactionButtons quote={current} disabled={quiet} />
-        <button type="button" className="tool tool-count" aria-label={copied ? "已複製" : "複製這句"} disabled={quiet} onClick={() => void copy()}>
-          <span className="swap" data-swapped={copied} aria-hidden="true">
-            <Copy />
-            <Check />
-          </span>
-          <span className="tool-label">{copied ? "已複製" : "複製"}</span>
-        </button>
-        {current && !quiet && (
-          <Link className="text-link action-detail" href={`/q/${current.id}`}>
-            留言與詳情
-          </Link>
-        )}
-      </div>
-
-      {drawerOpen && <CaseDrawer selected={categories} onToggle={choose} onClear={clear} onClose={() => setDrawerOpen(false)} />}
+  const toolbar = (
+    <div className="stage-toolbar" role="toolbar" aria-label="這句說說" data-morph-origin>
+      {/* Never disabled: that would throw keyboard focus away on every draw. Each press turns the colours further round */}
+      <span className="draw-wrap" data-magnet data-flare={spins ? spins % 2 : undefined} style={{ "--spin": `${spins * 200}deg` } as CSSProperties}>
+        <Button radius="full" className="toolbar-draw" startContent={<Shuffle aria-hidden="true" size={18} />} onPress={draw}>
+          <span className="toolbar-draw-label">換一句</span>
+          <span className="draw-sheen" aria-hidden="true" />
+        </Button>
+      </span>
+      <span className="toolbar-gap" aria-hidden="true" />
+      <ReactionButtons quote={current} disabled={quiet} />
+      <Button
+        isIconOnly
+        radius="full"
+        variant="light"
+        className="tool-copy"
+        data-copied={copied}
+        data-magnet
+        aria-label={copied ? "已複製" : "複製這句"}
+        isDisabled={quiet}
+        onPress={() => void copy()}
+      >
+        <span className="copy-swap" aria-hidden="true">
+          <Copy size={18} />
+          <Check size={18} />
+        </span>
+      </Button>
+      {/* The comments open over the stage, grown out of the whole bar (M-04) */}
+      {current && !quiet && <CommentsButton key={current.id} quote={current} labelled />}
     </div>
+  );
+
+  return (
+    <section className="stage" aria-label="隨機一句說說">
+      <div className="stage-light" aria-hidden="true" />
+
+      <div className="stage-body" ref={stage} aria-live="polite" aria-busy={status === "loading"}>
+        <Reveal loading={!current && status === "loading"} skeleton={<StageSkeleton />}>
+          {status === "empty" ? (
+            <StageNote title="這裡還沒有任何說說">
+              <LinkButton href="/submit" color="primary" radius="full" data-magnet startContent={<PenLine aria-hidden="true" size={18} />}>
+                提交第一句
+              </LinkButton>
+            </StageNote>
+          ) : status === "error" || !current ? (
+            <StageNote title="說說沒有載入成功">
+              <Button radius="full" variant="bordered" data-magnet startContent={<RotateCw aria-hidden="true" size={18} />} onPress={draw}>
+                重試
+              </Button>
+            </StageNote>
+          ) : (
+            // Not keyed by quote: the brackets stay mounted and glide from one sentence to the next
+            <figure className="stage-quote">
+              <div className="quote-frame">
+                <Bracket />
+                {/* Keyed, so each sentence's characters (and the caret riding them) are new; the brackets around them stay */}
+                <QuoteType key={current.id} content={current.content} />
+                <Bracket end />
+              </div>
+              <figcaption>
+                <QuoteCredit quote={current} />
+              </figcaption>
+            </figure>
+          )}
+        </Reveal>
+      </div>
+
+      {slot ? createPortal(toolbar, slot) : toolbar}
+    </section>
   );
 }

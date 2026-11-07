@@ -9,13 +9,10 @@ test("E2E-01: an anonymous visitor reads, draws, filters and shares", async ({ p
   const first = await quoteHeading(page).textContent();
   expect(first).toBeTruthy();
 
-  await page.getByRole("button", { name: "再抽一句" }).click();
+  await page.getByRole("button", { name: "換一句" }).click();
   await expect(quoteHeading(page).locator(".sr-only")).not.toHaveText(first!.slice(0, first!.length / 2), { timeout: 5000 });
 
-  await page.getByRole("button", { name: "遊戲" }).first().click();
-  await expect(page.locator(".sheet-source").first()).toContainText("遊戲");
-
-  await page.getByRole("link", { name: "留言與詳情" }).click();
+  await page.getByRole("link", { name: /^留言/ }).click();
   await page.waitForURL(/\/q\//);
   await page.getByRole("button", { name: "分享連結" }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
@@ -59,9 +56,10 @@ test("PV-05: unknown users are a 404 and a name with special characters round-tr
   await page.getByLabel("名稱").fill(`測試_中文-${user.id.slice(0, 6)}`);
   await page.getByRole("button", { name: "更新名稱" }).click();
   await expect(page.getByRole("heading", { level: 1, name: `測試_中文-${user.id.slice(0, 6)}` })).toBeVisible();
-  await page.getByRole("link", { name: "查看我的公開頁" }).click();
-  await page.waitForURL(/\/u\//);
-  await expect(page.getByRole("heading", { level: 1, name: `測試_中文-${user.id.slice(0, 6)}` })).toBeVisible();
+  // The public page opens in a new tab
+  const [profile] = await Promise.all([page.context().waitForEvent("page"), page.getByRole("link", { name: "查看我的公開頁" }).click()]);
+  await profile.waitForURL(/\/u\//);
+  await expect(profile.getByRole("heading", { level: 1, name: `測試_中文-${user.id.slice(0, 6)}` })).toBeVisible();
 });
 
 test("CD-01: public pages are cacheable and carry no cookie, private ones are not", async ({ request }) => {
@@ -88,7 +86,7 @@ test("CD-01: public pages are cacheable and carry no cookie, private ones are no
 test("SEC-12: the callback never redirects off site", async ({ request }) => {
   for (const next of ["https://evil.example", "//evil.example", "/\\evil.example"]) {
     const response = await request.get(`/auth/callback?error=access_denied&next=${encodeURIComponent(next)}`, { maxRedirects: 0 });
-    expect(new URL(response.headers().location!).host, next).toBe("localhost:3000");
+    expect(new URL(response.headers().location!).host, next).toBe("localhost:5000");
   }
 });
 

@@ -15,7 +15,7 @@ const sample = (content: string, key: string, name: string, index: number): Quot
     length: Array.from(content).length,
     category: { key, name },
     source_from: "元件測試",
-    submitter: { id: "x", username: "小明", deleted: false },
+    submitter: { id: "x", username: "小明", avatar_url: null, deleted: false },
     stats: { like_count: index, favorite_count: 0, comment_count: 0 },
     status: "published",
     commit_from: "web",

@@ -1,17 +1,16 @@
 import { logMotion, prefersReduced } from "./log";
 
-// Every GSAP move lives here (§13.1). Dynamic import keeps it out of the home page's first load (M0 #11).
+// Every GSAP move lives here (§13.1). Dynamic import keeps it out of the first load.
 const loadGsap = () => import("gsap").then((module) => module.gsap);
 
-async function loadPlugin<T extends object>(load: () => Promise<T>, pick: (module: T) => object) {
-  const [gsap, module] = await Promise.all([loadGsap(), load()]);
-  gsap.registerPlugin(pick(module));
-  return { gsap, module };
-}
-
-const clearProps = "transform,opacity";
+const clearProps = "transform,opacity,filter,clipPath";
 
 let running: { finish: () => void } | null = null;
+
+/** Starts fetching GSAP before the first M-01 needs it, alongside the font. */
+export function preloadPick() {
+  void loadGsap().catch(() => {});
+}
 
 /** Ends whatever M-01 is in progress and leaves its type readable. */
 export function stopPicking() {
@@ -19,13 +18,28 @@ export function stopPicking() {
   running = null;
 }
 
-/** M-01: the type falls into place one sort at a time. Resolves true if it ran to its end. */
-export async function pickType(root: HTMLElement): Promise<boolean> {
+/** The logo's two red strokes, riding just after the character being spoken. It takes no width, so nothing rewraps. */
+function makeCaret() {
+  const caret = document.createElement("span");
+  caret.className = "caret";
+  caret.setAttribute("aria-hidden", "true");
+  return caret;
+}
+
+/**
+ * M-01: the quote is spoken in. Each character comes from blur to sharp behind a red caret, the brackets close in
+ * on the sentence and the credit follows. On a later draw the brackets are already gliding to their new corners
+ * (moveBrackets), so `brackets: false` leaves them to it. `onReady` runs once every part holds its starting state, so
+ * the caller can stop hiding the type without it showing whole for a frame first. Resolves true if it ran to its end.
+ */
+export async function pickType(root: HTMLElement, { brackets = true, onReady = () => {} } = {}): Promise<boolean> {
   stopPicking();
   const chars = [...root.querySelectorAll<HTMLElement>("[data-char]")];
+  const frame = [...root.querySelectorAll<HTMLElement>(brackets ? ".bracket, .credit" : ".credit")];
   if (prefersReduced()) {
     logMotion("M-01", "reduced", "start");
     const animation = root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: "ease-in-out" });
+    onReady();
     await animation.finished.catch(() => {});
     logMotion("M-01", "reduced", "end");
     return true;
@@ -33,31 +47,70 @@ export async function pickType(root: HTMLElement): Promise<boolean> {
 
   const gsap = await loadGsap();
   logMotion("M-01", "full", "start");
+  const caret = makeCaret();
   return new Promise((resolve) => {
-    // Over 40 characters, whole lines drop in together: a stagger per character would outrun the 720 ms budget
+    // Over 40 characters, whole lines come in together: a stagger per character would outrun the budget
     const lines = new Map<number, HTMLElement[]>();
-    for (const char of chars) {
-      const line = root.closest("[data-layout='vertical']") ? char.offsetLeft : char.offsetTop;
-      lines.set(line, [...(lines.get(line) ?? []), char]);
-    }
+    for (const char of chars) lines.set(char.offsetTop, [...(lines.get(char.offsetTop) ?? []), char]);
     const groups = chars.length > 40 ? [...lines.values()] : chars.map((char) => [char]);
-    const each = Math.min(0.018, 0.36 / Math.max(groups.length, 1));
+    const each = Math.min(0.045, 0.9 / Math.max(groups.length, 1));
+    // A phone repaints every blurred glyph each frame, so there the characters only rise and fade in
+    const blur = matchMedia("(pointer: fine)").matches ? 10 : 0;
+    const done = () => {
+      gsap.set([...chars, ...frame], { clearProps });
+      caret.classList.add("caret-rest");
+      setTimeout(() => caret.remove(), 1400);
+    };
 
     const timeline = gsap.timeline({
       onComplete: () => {
-        gsap.set(chars, { clearProps });
+        done();
         running = null;
         logMotion("M-01", "full", "end");
         resolve(true);
       },
     });
+    if (brackets) {
+      timeline.fromTo(
+        root.querySelectorAll(".bracket-open"),
+        { x: "1.2em", y: "0.8em", opacity: 0 },
+        { x: 0, y: 0, opacity: 1, duration: 0.7, ease: "expo.out" },
+        0,
+      );
+      timeline.fromTo(
+        root.querySelectorAll(".bracket-close"),
+        { x: "-1.2em", y: "-0.8em", opacity: 0 },
+        { x: 0, y: 0, opacity: 1, duration: 0.7, ease: "expo.out" },
+        0,
+      );
+    }
     groups.forEach((group, index) => {
-      timeline.fromTo(group, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.36, ease: "power3.out" }, index * each);
+      timeline.fromTo(
+        group,
+        { opacity: 0, y: "0.18em", filter: `blur(${blur}px)` },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.55,
+          ease: "expo.out",
+          onStart: () => group.at(-1)?.after(caret),
+        },
+        0.08 + index * each,
+      );
     });
+    // The credit is written out from left to right, the way the line under it reads
+    timeline.fromTo(
+      root.querySelectorAll(".credit"),
+      { opacity: 0, x: -12, clipPath: "inset(0% 100% 0% 0%)" },
+      { opacity: 1, x: 0, clipPath: "inset(0% 0% 0% 0%)", duration: 0.7, ease: "expo.out" },
+      ">-0.3",
+    );
+    onReady();
     running = {
       finish: () => {
         timeline.kill();
-        gsap.set(chars, { clearProps });
+        done();
         logMotion("M-01", "full", "end");
         resolve(false);
       },
@@ -65,116 +118,58 @@ export async function pickType(root: HTMLElement): Promise<boolean> {
   });
 }
 
-/** The leaving half of M-01. Returns a function that puts the type back when the next quote is ready. */
+/**
+ * The leaving half of M-01: the sentence and its credit blur away while the brackets stay to receive the next one.
+ * Returns a function that puts them back when the next one is ready.
+ */
 export function dropType(root: HTMLElement): () => void {
   stopPicking();
   if (prefersReduced()) return () => {};
-  const animation = root.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(4px)" }], {
-    duration: 150,
-    easing: "ease-in",
-    fill: "forwards",
-  });
-  return () => animation.cancel();
+  const leave = { duration: 220, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" } as const;
+  const animations = [
+    ...[...root.querySelectorAll(".quote")].map((quote) =>
+      quote.animate(
+        [
+          { opacity: 1, transform: "none", filter: "blur(0px)" },
+          { opacity: 0, transform: "translateY(-6px)", filter: "blur(8px)" },
+        ],
+        leave,
+      ),
+    ),
+    // The credit is taken back from right to left
+    ...[...root.querySelectorAll(".credit")].map((credit) =>
+      credit.animate(
+        [
+          { opacity: 1, transform: "none", clipPath: "inset(0% 0% 0% 0%)" },
+          { opacity: 0, transform: "translateX(-12px)", clipPath: "inset(0% 100% 0% 0%)" },
+        ],
+        leave,
+      ),
+    ),
+  ];
+  return () => animations.forEach((animation) => animation.cancel());
 }
 
-/** M-02: every character travels from its old place to its new one. */
-export async function flipLayout(root: HTMLElement, change: () => void) {
-  stopPicking();
-  if (prefersReduced()) {
-    logMotion("M-02", "reduced", "start");
-    change();
-    logMotion("M-02", "reduced", "end");
-    return;
-  }
-  const chars = [...root.querySelectorAll<HTMLElement>("[data-char]")];
-  const { module, gsap } = await loadPlugin(() => import("gsap/Flip"), (loaded) => loaded.Flip);
-  const state = module.Flip.getState(chars);
-  change();
-  logMotion("M-02", "full", "start");
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  module.Flip.from(state, {
-    duration: 0.5,
-    stagger: 0.008,
-    ease: "expo.out",
-    onComplete: () => {
-      gsap.set(chars, { clearProps });
-      logMotion("M-02", "full", "end");
-    },
-  });
-}
-
-/** Builds a ScrollTrigger scope and returns its cleanup. Nothing here runs on the server. */
-export async function withScroll(root: HTMLElement, build: (tools: Awaited<ReturnType<typeof scrollTools>>) => void) {
-  const tools = await scrollTools();
-  const context = tools.gsap.context(() => build(tools), root);
-  return () => context.revert();
-}
-
-async function scrollTools() {
-  const { gsap, module } = await loadPlugin(() => import("gsap/ScrollTrigger"), (loaded) => loaded.ScrollTrigger);
-  return { gsap, ScrollTrigger: module.ScrollTrigger };
-}
-
-/** M-10: the parts of a section rise once as it enters. Content is visible until this runs, and stays so if it never does. */
-export async function revealSections(root: HTMLElement) {
-  if (prefersReduced()) {
-    logMotion("M-10", "reduced", "start");
-    return () => {};
-  }
-  logMotion("M-10", "full", "start");
-  return withScroll(root, ({ gsap, ScrollTrigger }) => {
-    for (const section of root.querySelectorAll<HTMLElement>("[data-reveal-group]")) {
-      const parts = section.querySelectorAll("[data-reveal]");
-      gsap.set(parts, { y: 24, opacity: 0 });
-      ScrollTrigger.create({
-        trigger: section,
-        start: "top 82%",
-        once: true,
-        onEnter: () => gsap.to(parts, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out", stagger: 0.08, clearProps }),
-      });
-    }
+/** Where each bracket stands now, measured against `root` so a scroll in between changes nothing. */
+export function bracketCorners(root: HTMLElement) {
+  const base = root.getBoundingClientRect();
+  return [...root.querySelectorAll(".bracket")].map((bracket) => {
+    const box = bracket.getBoundingClientRect();
+    return { x: box.left - base.left, y: box.top - base.top };
   });
 }
 
-/** M-11: the footer's contents rise from behind the page as it comes into view. Phones keep a plain footer. */
-export async function curtainFooter(footer: HTMLElement) {
-  if (prefersReduced() || innerWidth < 1024) {
-    logMotion("M-11", "reduced", "start");
-    return () => {};
-  }
-  logMotion("M-11", "full", "start");
-  return withScroll(footer, ({ gsap }) => {
-    gsap.from(footer.firstElementChild, {
-      yPercent: -35,
-      ease: "none",
-      scrollTrigger: { trigger: footer, start: "top bottom", end: "bottom bottom", scrub: true },
-    });
-  });
-}
-
-/** Cards that fold into spines. Only transforms and clips change as the page scrolls. */
-export async function foldSpines(stage: HTMLElement, deck: HTMLElement, spine: number) {
-  if (prefersReduced()) return () => {};
-  const cards = [...deck.querySelectorAll<HTMLElement>("[data-spine-card]")];
-  return withScroll(stage, ({ gsap, ScrollTrigger }) => {
-    const place = (progress: number) => {
-      const open = deck.clientWidth - spine * (cards.length - 1);
-      const step = progress * (cards.length - 1);
-      const left = (index: number) => index * spine + Math.min(1, Math.max(0, index - step)) * (open - spine);
-      // Clipped rather than covered: a card's hidden part is really gone, for clicks as well as for the eye
-      cards.forEach((card, index) => {
-        const visible = index === cards.length - 1 ? open : left(index + 1) - left(index);
-        gsap.set(card, { x: left(index), clipPath: `inset(0 ${open - visible}px 0 0)` });
-      });
-    };
-    place(0);
-    ScrollTrigger.create({
-      trigger: stage,
-      start: "top top",
-      end: "bottom bottom",
-      scrub: true,
-      onUpdate: (self) => place(self.progress),
-      onRefresh: (self) => place(self.progress),
-    });
+/** The brackets glide from where they stood around the last sentence to the corners of the new one (FLIP). */
+export function moveBrackets(root: HTMLElement, from: { x: number; y: number }[]) {
+  if (prefersReduced()) return;
+  const spring = getComputedStyle(document.documentElement).getPropertyValue("--ease-spring").trim() || "ease-out";
+  bracketCorners(root).forEach((to, index) => {
+    const start = from[index];
+    const bracket = root.querySelectorAll(".bracket")[index];
+    if (!start || !bracket) return;
+    const dx = start.x - to.x;
+    const dy = start.y - to.y;
+    if (Math.abs(dx) + Math.abs(dy) < 1) return;
+    bracket.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 760, easing: spring });
   });
 }

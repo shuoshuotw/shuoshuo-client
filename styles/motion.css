@@ -6,8 +6,24 @@
 }
 
 /* Hidden, not transparent: the rewrap when the face arrives must not count as a layout shift (MO-10) */
-.pick-pending .quote > [aria-hidden] {
+.pick-pending .quote > [aria-hidden],
+.pick-pending .stage-quote {
   visibility: hidden;
+}
+
+/* A later draw: the brackets glide while the new sentence and credit wait for M-01 to take them */
+.stage-body[data-hold] :is(.quote, .credit) {
+  visibility: hidden;
+}
+
+/* 減少動畫, chosen on this device (lib/motion-pref.ts). Every reduced-motion block in these stylesheets has a twin for
+   it, and the scripts take their reduced variants through prefersReduced(). On top of that, what still eases between
+   two states only fades or changes colour: whatever would have moved or grown gets there at once */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] ::before,
+:root[data-motion="reduce"] ::after {
+  transition-property: opacity, color, background-color, border-color, outline-color, box-shadow, fill, stroke !important;
+  scroll-behavior: auto !important;
 }
 
 /* M-03 */
@@ -50,20 +66,24 @@
   opacity: 1;
 }
 
-/* M-18: the count remounts when its value changes */
-.count {
-  animation: count-in var(--duration-fast) var(--ease-in-out);
+/* M-18: a count's changed digits pop in (Digits, transitions-dev number pop-in) */
+
+/* M-21: the page changes theme at once, and ThemeToggle crossfades a picture of the old page into the live new one
+   (a view transition), so every part fades to its new colours together. Only the icons swap on their own meanwhile.
+   The rule names the parts that tween colours rather than every element, so taking it off restyles those alone */
+.theme-instant :is(a, button, svg:not(.theme-sun, .theme-moon), .composer, .draw-wrap, .sheet, .tool, .case-cell, [data-slot="input-wrapper"]),
+.theme-instant :is(a, button)::before,
+.theme-instant :is(a, button)::after {
+  transition: none !important;
 }
 
-@keyframes count-in {
-  from {
-    opacity: 0;
-    filter: blur(2px);
-    transform: translateY(6px);
-  }
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-medium);
+  animation-timing-function: var(--ease-in-out);
 }
 
-/* M-21 */
+/* Without view transitions every element tweens its own colours instead */
 .theme-switching,
 .theme-switching * {
   transition:
@@ -71,18 +91,24 @@
     color var(--duration-fast) var(--ease-in-out);
 }
 
+.theme-icons {
+  display: inline-grid;
+}
+
 .theme-sun,
 .theme-moon {
   grid-area: 1 / 1;
   transition:
     opacity var(--duration-fast) var(--ease-in-out),
+    filter var(--duration-fast) var(--ease-in-out),
     transform var(--duration-fast) var(--ease-in-out);
 }
 
 .dark .theme-sun,
 html:not(.dark) .theme-moon {
   opacity: 0;
-  transform: rotate(45deg);
+  filter: blur(var(--blur-small));
+  transform: rotate(45deg) scale(0.6);
 }
 
 /* M-12 */
@@ -131,9 +157,7 @@ html:not(.dark) .theme-moon {
   .case-cell,
   .swap > *,
   .theme-sun,
-  .theme-moon,
-  .theme-switching,
-  .theme-switching * {
+  .theme-moon {
     transition-duration: 0ms;
   }
 
@@ -159,3 +183,36 @@ html:not(.dark) .theme-moon {
     }
   }
 }
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .sheet,
+:root[data-motion="reduce"] .button,
+:root[data-motion="reduce"] .tool,
+:root[data-motion="reduce"] .case-cell,
+:root[data-motion="reduce"] .swap > *,
+:root[data-motion="reduce"] .theme-sun,
+:root[data-motion="reduce"] .theme-moon {
+  transition-duration: 0ms;
+}
+
+:root[data-motion="reduce"] .button:active:not(:disabled),
+:root[data-motion="reduce"] .tool:active:not(:disabled),
+:root[data-motion="reduce"] .case-cell:active {
+  transform: none;
+}
+
+:root[data-motion="reduce"] .count,
+:root[data-motion="reduce"] .skeleton-lines > span,
+:root[data-motion="reduce"] .field-shake {
+  animation: none;
+}
+
+:root[data-motion="reduce"] .page-in {
+  animation: page-in-reduced var(--duration-quick) linear;
+}
+
+@keyframes page-in-reduced {
+    from {
+      opacity: 0;
+    }
+  }

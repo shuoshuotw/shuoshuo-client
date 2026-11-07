@@ -1,59 +1,5 @@
 /* The pages behind the home page (§12.7). Read pages keep the paper; Operate pages stay quiet and let the words work. */
 
-/* ---------- header additions ---------- */
-
-.site-header {
-  flex-wrap: wrap;
-  height: auto;
-  min-height: 64px;
-  row-gap: 0;
-}
-
-.site-nav {
-  display: flex;
-  order: 3;
-  flex: 1 0 100%;
-  gap: var(--space-4);
-  padding-bottom: var(--space-2);
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-.auth-out {
-  display: none;
-}
-
-.signed-in .auth-out {
-  display: inline-flex;
-}
-
-.signed-in .auth-in {
-  display: none;
-}
-
-.avatar-link {
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-}
-
-.avatar {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  border-radius: var(--radius-full);
-  object-fit: cover;
-}
-
-.avatar-blank {
-  background: var(--action);
-  color: var(--action-ink);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-}
-
 /* ---------- shared ---------- */
 
 .block-title {
@@ -68,15 +14,27 @@
   line-height: 1.35;
 }
 
+/* A quiet action inside a row: muted text and its icon on a pill that only shows under the pointer */
 .text-button {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  min-height: 44px;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  font-weight: 700;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    color var(--duration-quick) var(--ease-out);
+}
+
+.text-button:hover {
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+  color: var(--ink);
 }
 
 .text-button svg {
@@ -84,26 +42,176 @@
   height: 16px;
 }
 
+/* A notice that something about this page is not as usual */
 .banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  background: var(--accent-tint);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--accent-tint) 80%, transparent);
+  color: var(--ink);
+  font-size: 15px;
 }
 
 .banner .text-link {
   margin-left: var(--space-2);
 }
 
+/* An account notice (Notice): a disc with its mark, a title and a line, and what to do about it on the right. Its
+   tone glows faintly out of the mark's side */
+.notice {
+  --tone: var(--warning);
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--tone) 34%, var(--line));
+  border-radius: var(--radius-card);
+  background:
+    radial-gradient(70% 160% at 0% 50%, color-mix(in oklab, var(--tone) 16%, transparent), transparent 70%),
+    var(--glass);
+  box-shadow: var(--shadow-soft);
+  animation: notice-in 420ms var(--ease-smooth-out) both;
+}
+
+.notice[data-tone="danger"] {
+  --tone: var(--accent);
+}
+
+.notice-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--tone) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tone) 30%, transparent);
+  color: var(--tone);
+}
+
+.notice-text {
+  display: grid;
+  gap: 2px;
+}
+
+.notice-title {
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.notice-body {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.notice-action {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+@media (min-width: 640px) {
+  .notice {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .notice-action {
+    grid-column: auto;
+  }
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--blur-small));
+    translate: 0 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice {
+    animation-name: notice-fade;
+  }
+
+  @keyframes notice-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .notice {
+  animation-name: notice-fade;
+}
+
+@keyframes notice-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.page-head {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.page-head h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.page-head h1 svg {
+  flex: none;
+  width: 0.8em;
+  height: 0.8em;
+  color: var(--muted);
+  stroke-width: 1.75;
+}
+
+.page-head p {
+  color: var(--muted);
+}
+
+/* An empty or failed list: a dashed glass outline where the cards would be, its icon, one line and what to do */
 .state-note {
   display: grid;
-  justify-items: start;
+  justify-items: center;
   gap: var(--space-3);
-  padding: var(--space-7) 0;
+  padding: var(--space-7) var(--space-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--glass);
+  text-align: center;
+  animation: reveal-in var(--duration-slow) var(--ease-in-out) both;
+}
+
+.state-note-icon {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
 }
 
 .state-note-title {
-  font-size: clamp(24px, 3vw, 32px);
+  font-size: clamp(20px, 2.4vw, 26px);
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+/* A line under the title, in small type (BarredNote's until when) */
+.state-note-body {
+  margin-top: calc(var(--space-2) * -1);
+  color: var(--muted);
+  font-size: 14px;
+  text-wrap: balance;
 }
 
 .panel-skeleton {
@@ -118,7 +226,7 @@
 
 .form {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-5);
   width: 100%;
 }
 
@@ -128,40 +236,203 @@
 
 .field {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .field label,
 .field legend {
+  font-size: 14px;
   font-weight: 700;
 }
 
 .field legend {
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
+/* Fields are rounded and white, with an ink edge and a soft ring of it while focused */
 .input {
   width: 100%;
-  min-height: 44px;
-  padding: var(--space-2) var(--space-3);
+  min-height: 48px;
+  padding: 11px 14px;
+  border: 1px solid var(--line-strong); /* taste-skill-ignore: form fields need an edge to be seen as fields */
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--ink);
-  border: 1px solid var(--muted); /* taste-skill-ignore: form fields need an edge to be seen as fields */
+  transition:
+    border-color var(--duration-quick) var(--ease-out),
+    box-shadow var(--duration-quick) var(--ease-out);
+}
+
+.input:hover {
+  border-color: color-mix(in oklab, var(--ink) 32%, transparent);
 }
 
 .input:focus-visible {
-  outline-offset: 0;
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ink) 10%, transparent);
+}
+
+textarea.input {
+  line-height: 1.7;
+  resize: vertical;
+}
+
+select.input {
+  padding-right: 40px;
+  appearance: none;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b5e64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center;
 }
 
 .input[aria-invalid="true"] {
   border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 14%, transparent);
 }
 
 .field-hint {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+/* Under a field: its hint on the left and how much is written on the right, as on the submit page */
+.field-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.field-count {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A hint led by its icon (a lightbulb before advice) */
+.field-hint > svg:first-child {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+
+/* HeroUI's Select dressed as the other fields: the same label, the same white rounded box, its list a floating sheet */
+.choice-label {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.choice-trigger {
+  min-height: 48px;
+  border-width: 1px;
+  border-color: var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  transition:
+    border-color var(--duration-quick) var(--ease-out),
+    box-shadow var(--duration-quick) var(--ease-out);
+}
+
+.choice-trigger:is([data-hover="true"], [data-open="true"], [data-focus="true"]) {
+  border-color: var(--ink);
+}
+
+.choice-trigger[data-open="true"] {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ink) 10%, transparent);
+}
+
+.choice-trigger [data-slot="value"] {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+/* The list is the trigger opened up: as wide, the same surface and corners, the current row laid over the trigger
+   (ChoiceField). Hidden for the one frame before the first measure, so it never shows at full height before growing */
+/* HeroUI centres the list in the box; held to its top, it stays put while the box is shorter than it */
+.choice-popover {
+  justify-content: flex-start;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+}
+
+.choice-popover:not([data-shown]) {
+  visibility: hidden;
+}
+
+.choice-popover[data-shutting] {
+  pointer-events: none;
+}
+
+.choice-list,
+.choice-listbox {
+  position: relative;
+  padding: 0;
+}
+
+/* Keeps its full height while the box around it grows and folds: squeezed with the box, it scrolled to centre the
+   current row and slid that row out of the band laid over the trigger */
+.choice-list {
+  flex-shrink: 0;
+}
+
+.choice-listbox [role="listbox"] {
+  gap: 0;
+  padding: 1px 0;
+}
+
+/* Every row the trigger's text in the trigger's place: 44px tall, the text 13px in from the edge */
+.choice-option {
+  position: relative;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.choice-option:is([data-hover="true"], [data-focus-visible="true"], [data-selected="true"]) {
+  color: var(--ink);
+}
+
+/* The current choice under a mark with its check; picking slides the mark to the new one before the list folds */
+.choice-mark {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 40px;
+  padding-right: 10px;
+  border-radius: calc(var(--radius-control) - 3px);
+  background: color-mix(in oklab, var(--ink) 8%, var(--surface));
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.choice-popover[data-shutting] .choice-mark {
+  transition: translate 170ms var(--ease-smooth-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .choice-popover[data-shutting] .choice-mark {
+    transition: none;
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .choice-popover[data-shutting] .choice-mark {
+  transition: none;
 }
 
 .field-error,
@@ -193,9 +464,9 @@
 }
 
 .category-picker {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
-  gap: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .category-picker .case-cell:focus-within {
@@ -214,142 +485,434 @@
 .list-page,
 .tombstone,
 .login,
-.submit {
+.submit,
+.legal {
   padding: var(--space-5) var(--frame) var(--section-gap);
 }
 
+/* ---------- terms and privacy: one glass sheet at a reading measure ---------- */
+
+.legal article {
+  display: grid;
+  max-width: 46em;
+  margin: 0 auto;
+  padding: clamp(var(--space-5), 5vw, var(--space-7));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sheet);
+  background: color-mix(in oklab, var(--surface) 90%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.legal .page-head {
+  margin-bottom: var(--space-5);
+}
+
+.legal h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-7) 0 var(--space-3);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* Each section opens on a short stroke of the brand's red, as the logo does */
+.legal h2::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  height: 1.1em;
+  border-radius: 2px;
+  background: var(--brand-red);
+}
+
+.legal p,
+.legal ul,
+.legal dl {
+  margin-bottom: var(--space-4);
+}
+
+.legal ul {
+  padding-left: 1.5em;
+  list-style: disc;
+}
+
+.legal li::marker {
+  color: var(--muted);
+}
+
+.legal li + li {
+  margin-top: var(--space-2);
+}
+
+.legal a {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--duration-quick) var(--ease-out);
+}
+
+.legal a:hover {
+  text-decoration-color: currentcolor;
+}
+
+.legal code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--sunk);
+  font-family: var(--font-code);
+  font-size: 0.9em;
+}
+
+.legal-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.legal-list dt {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+}
+
+.legal-list dd {
+  padding-bottom: var(--space-3);
+}
+
+/* On a phone the categories ride the dock, so the bar the server drew here never shows before it moves there */
+@media (max-width: 767px) {
+  .list-filter {
+    display: none;
+  }
+}
+
+/* One column that never grows past the screen: the chip row scrolls inside it instead of widening the page */
 .list-page {
   display: grid;
-  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
   /* Keeps the footer below the fold while a short list loads */
   min-height: 70svh;
   align-content: start;
-}
-
-.list-filter .type-case {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.rows {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.quote-row-meta .text-button,
-.quote-row-meta .text-link {
-  min-height: 0;
-  color: inherit;
-}
-
-.quote-row-meta .text-button {
-  font-size: inherit;
+  max-width: calc(var(--content-max) + var(--frame) * 2);
+  margin: 0 auto;
 }
 
 .list-footer {
   display: grid;
   justify-items: center;
   gap: var(--space-2);
+  padding-top: var(--space-4);
 }
 
+/* M-22 for tabs that are pages: a white pill slides inside a glass track from the old tab to the new one. Three short
+   tabs always fit, so the track never scrolls (a scrolling track showed scrollbars when a tab was pulled) */
 .route-tabs {
   position: relative;
-  display: flex;
-  gap: var(--space-1);
-  overflow-x: auto;
+  display: inline-flex;
+  justify-self: start;
+  gap: 2px;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
 }
 
-.route-tabs a {
+.route-tabs :is(a, button) {
   position: relative;
   z-index: 1;
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 72px;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 var(--space-4);
-  font-weight: 700;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
   transition: color var(--duration-fast) var(--ease-smooth-out);
 }
 
-.route-tabs a[aria-current="page"] {
-  color: var(--action-ink);
+.route-tabs :is(a, button):hover {
+  color: var(--ink);
 }
 
-/* M-22 */
-.route-tabs-block {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  background: var(--action);
+.route-tabs :is(a[aria-current="page"], button[data-active="true"]) {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.route-tabs .nav-pill {
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgb(12 12 14 / 0.08),
+    0 4px 12px -4px rgb(12 12 14 / 0.16);
   transition:
-    transform var(--duration-fast) var(--ease-smooth-out),
-    width var(--duration-fast) var(--ease-smooth-out);
+    transform 520ms var(--ease-spring),
+    width 520ms var(--ease-spring),
+    opacity var(--duration-quick) var(--ease-in-out),
+    translate 480ms var(--ease-spring),
+    scale 480ms var(--ease-spring);
 }
 
 .profile-head {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
-/* ---------- detail ---------- */
+.profile-head p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  color: var(--muted);
+}
+
+.profile-head p span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-head .avatar {
+  flex: none;
+  box-shadow:
+    0 0 0 4px var(--glass),
+    var(--shadow-soft);
+}
+
+/* A profile's list comes in from the side of the tab it was chosen from (ProfileContent) */
+.profile-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  align-content: start;
+}
+
+/* The list under a row of tabs (SlidePane) comes in the same way */
+.slide-pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-content: start;
+}
+
+:is(.profile-main, .slide-pane)[data-enter] {
+  animation: me-in 460ms var(--ease-smooth-out) both;
+}
+
+:is(.profile-main, .slide-pane)[data-enter="next"] {
+  --from: 28px 0;
+}
+
+:is(.profile-main, .slide-pane)[data-enter="back"] {
+  --from: -28px 0;
+}
+
+/* Opened from a card, the picture and the name travel from the card into the head (profile-morph.ts) */
+::view-transition-group(profile-avatar),
+::view-transition-group(profile-name) {
+  animation-duration: 520ms;
+  animation-timing-function: var(--ease-smooth-out);
+}
+
+/* The name is set in another size and weight there, so each picture of it keeps its own shape */
+::view-transition-old(profile-name),
+::view-transition-new(profile-name) {
+  height: 100%;
+  object-fit: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.profile-main, .slide-pane)[data-enter] {
+    animation: page-in-reduced var(--duration-quick) linear;
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] :is(.profile-main, .slide-pane)[data-enter] {
+  animation: page-in-reduced var(--duration-quick) linear;
+}
+
+/* ---------- detail: the quote on a stage of its own, the talk under it ---------- */
 
 .detail {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-7);
   padding: 0 var(--frame) var(--section-gap);
 }
 
-.detail-side {
+.detail-stage {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  gap: var(--space-4);
-  align-content: start;
-  min-width: 0;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-5);
+  min-height: min(84svh, 920px);
+}
+
+.detail-figure {
+  width: fit-content;
+  max-width: min(1080px, 100%);
+  margin: 0;
+}
+
+.detail-figure .quote {
+  color: var(--ink);
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* Where a quote opened from elsewhere lands: its sentence is the far end of the morph (quote-morph.ts) */
+.detail-figure .quote {
+  view-transition-name: quote-text;
+}
+
+::view-transition-group(quote-text) {
+  animation-duration: 560ms;
+  animation-timing-function: var(--ease-smooth-out);
+}
+
+::view-transition-old(quote-text),
+::view-transition-new(quote-text) {
+  height: 100%;
+  object-fit: contain;
+}
+
+.dark .detail-figure .quote {
+  text-shadow: 0 0 48px color-mix(in oklab, var(--tint) 30%, transparent);
 }
 
 .detail-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-right: clamp(30px, 5vw, 80px);
+  text-align: right;
 }
 
-.detail-actions {
+.detail-meta .credit {
+  font-size: clamp(14px, 0.8rem + 0.4vw, 18px);
+}
+
+.detail-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
-  margin-left: calc(var(--space-3) * -1);
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.detail-facts > :is(span, time):not(.category-chip) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.detail-facts .category-chip {
+  --glow: var(--tint);
+}
+
+/* Every action keeps its word beside its icon here; the bar wraps rather than hiding them */
+.detail-actions {
+  flex-wrap: wrap;
 }
 
 .detail-actions .tool-label {
   display: inline;
 }
 
-.detail-owner {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
+.detail-actions .toolbar-gap {
+  display: block;
 }
 
+.tool-danger:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+/* The talk: one glass sheet at a reading measure */
 .comments {
   display: grid;
-  gap: var(--space-4);
-  margin-top: var(--space-5);
+  gap: var(--space-5);
+  justify-self: center;
+  width: min(760px, 100%);
+  padding: var(--space-6) clamp(var(--space-4), 4vw, var(--space-6));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sheet);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
+}
+
+@media (pointer: fine) {
+  .comments {
+    backdrop-filter: blur(16px) saturate(1.4);
+  }
+}
+
+.comments-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.comments-title svg {
+  color: var(--muted);
+}
+
+.comments .state-note {
+  padding: var(--space-6) var(--space-4);
+  background: transparent;
+}
+
+.comment-signin {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--ink) 4%, transparent);
+}
+
+.comment-signin svg {
+  color: var(--muted);
 }
 
 .comment-list {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-1);
 }
 
 .comment {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
   gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: 20px;
+  transition: background-color var(--duration-quick) var(--ease-out);
+}
+
+.comment:hover {
+  background: color-mix(in oklab, var(--ink) 3%, transparent);
 }
 
 .comment[data-pinned] {
-  padding: var(--space-3);
-  background: var(--surface);
+  border-color: color-mix(in oklab, var(--brand-red) 22%, transparent);
+  background: color-mix(in oklab, var(--brand-red) 6%, var(--surface));
 }
 
 .comment-skeleton .avatar {
@@ -363,6 +926,7 @@
 
 .comment-skeleton .skeleton-lines > span {
   height: 20px;
+  background: var(--sunk);
 }
 
 .comment-head {
@@ -370,22 +934,34 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 var(--space-3);
-  font-size: 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.comment-head .text-link {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .comment-pin {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--brand-red) 12%, transparent);
+  color: var(--accent);
   font-weight: 700;
 }
 
 .comment-pin svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .comment-text {
+  margin-top: 2px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -393,89 +969,497 @@
 .comment-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 var(--space-4);
-  font-size: 14px;
+  gap: 2px;
+  margin: var(--space-1) 0 0 calc(var(--space-3) * -1);
 }
 
 .tombstone {
   display: grid;
-  justify-items: start;
+  justify-items: center;
   align-content: center;
   gap: var(--space-4);
   min-height: 70svh;
+  text-align: center;
 }
 
-/* ---------- login and submit ---------- */
+.tombstone-icon {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.tombstone > p {
+  color: var(--muted);
+}
+
+/* ---------- login: one glass card in the middle of the light ---------- */
 
 .login {
   display: grid;
-  align-content: center;
-  min-height: 70svh;
-}
-
-.login-paper {
-  display: none;
+  place-items: center;
+  min-height: 80svh;
 }
 
 .login-panel {
   display: grid;
-  justify-items: start;
+  justify-items: center;
   gap: var(--space-4);
-  max-width: 480px;
+  width: min(440px, 100%);
+  padding: var(--space-7) clamp(var(--space-5), 5vw, var(--space-7));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sheet);
+  background: var(--glass);
+  box-shadow: var(--shadow-lift);
+  text-align: center;
+}
+
+@media (pointer: fine) {
+  .login-panel {
+    backdrop-filter: blur(18px) saturate(1.4);
+  }
+}
+
+.login-panel > p {
+  color: var(--muted);
+  text-wrap: balance;
 }
 
 .login-buttons {
   display: grid;
   gap: var(--space-2);
   width: 100%;
+  margin-top: var(--space-2);
 }
+
+.login-button {
+  width: 100%;
+  border-width: 1px;
+  border-color: var(--line-strong);
+  background: var(--surface);
+  font-weight: 500;
+}
+
+.mark-discord {
+  color: var(--brand-discord);
+}
+
+/* ---------- submit: the home page's composer, carried on ---------- */
 
 .submit {
   display: grid;
-  gap: var(--space-6);
-  align-items: start;
+  justify-items: stretch;
+  width: min(960px, 100%);
+  margin: 0 auto;
 }
 
-.submit-preview .sheet {
-  min-height: 320px;
+.submit-form {
+  gap: var(--space-5);
 }
 
-/* ---------- personal centre ---------- */
+.submit-composer[data-invalid="true"] {
+  border-color: color-mix(in oklab, var(--accent) 50%, transparent);
+}
+
+.submit-composer[data-invalid="true"] .bracket {
+  color: var(--accent);
+}
+
+.submit-details {
+  display: grid;
+  gap: var(--space-5);
+  padding: clamp(var(--space-5), 4vw, var(--space-6));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sheet);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
+}
+
+.submit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
+
+/* M-08, sending a quote: everything below the card folds away and the page goes back up to the card, where a disc
+   comes in over the dimmed sentence with a spinner (SendStatus). When the server has it the disc turns green, pops
+   and draws its tick, the card's edge turns green with it, and the card lifts away */
+.submit-fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 460ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 260ms var(--ease-out);
+}
+
+/* Room around the sheet for its shadow and the pull of the controls, which the fold would clip */
+.submit-fold-inner {
+  display: grid;
+  gap: var(--space-5);
+  min-height: 0;
+  margin: -24px;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.submit-form:not([data-phase="idle"]) .submit-fold {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.submit-composer {
+  position: relative;
+  transition:
+    border-color var(--duration-slow) var(--ease-smooth-out),
+    box-shadow var(--duration-slow) var(--ease-smooth-out);
+}
+
+.submit-composer :is(.composer-frame, .composer-foot) {
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    filter var(--duration-fast) var(--ease-out);
+}
+
+.submit-form:not([data-phase="idle"]) .submit-composer :is(.composer-frame, .composer-foot) {
+  opacity: 0.28;
+  filter: blur(var(--blur-small));
+}
+
+.submit-form[data-phase="done"] .submit-composer {
+  border-color: color-mix(in oklab, var(--success) 60%, transparent);
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--success) 14%, transparent),
+    var(--shadow-soft);
+}
+
+.send-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.send-disc {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: var(--action);
+  color: var(--action-ink);
+  opacity: 0;
+  scale: 0.6;
+  transition:
+    opacity 240ms var(--ease-out),
+    scale 420ms var(--ease-spring),
+    background-color var(--duration-medium) var(--ease-smooth-out);
+}
+
+.send-status:not([data-phase="idle"]) .send-disc {
+  opacity: 1;
+  scale: 1;
+}
+
+.send-ring,
+.send-arc,
+.send-check {
+  grid-area: 1 / 1;
+}
+
+.send-ring,
+.send-arc {
+  width: 26px;
+  height: 26px;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  transition: opacity 200ms var(--ease-out);
+}
+
+.send-ring {
+  border-color: color-mix(in oklab, currentcolor 24%, transparent);
+}
+
+.send-arc {
+  border-top-color: currentcolor;
+  animation: send-spin 900ms linear infinite;
+}
+
+.send-status[data-phase="done"] :is(.send-ring, .send-arc) {
+  opacity: 0;
+}
+
+.send-check {
+  width: 32px;
+  height: 32px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.send-status[data-phase="done"] .send-disc {
+  background: var(--success);
+  animation: send-pop 560ms var(--ease-smooth-out);
+}
+
+.send-status[data-phase="done"] .send-check {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 520ms var(--ease-smooth-out) 140ms;
+}
+
+@keyframes send-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The disc swells a little as it fills and bobs up, then settles */
+@keyframes send-pop {
+  40% {
+    transform: translateY(-3px) scale(1.09);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .send-arc {
+    animation-duration: 2.4s;
+  }
+
+  .send-status[data-phase="done"] .send-disc {
+    animation: none;
+  }
+
+  .submit-composer :is(.composer-frame, .composer-foot) {
+    filter: none !important;
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .send-arc {
+  animation-duration: 2.4s;
+}
+
+:root[data-motion="reduce"] .send-status[data-phase="done"] .send-disc {
+  animation: none;
+}
+
+:root[data-motion="reduce"] .submit-composer :is(.composer-frame, .composer-foot) {
+  filter: none !important;
+}
+
+.nowrap,
+.table-nowrap {
+  white-space: nowrap;
+}
+
+/* Columns of words that may wrap, but not down to a character a line; a narrow screen scrolls the table instead */
+.table-roomy {
+  min-width: 6.5em;
+}
+
+/* Seven columns, three of them dates that never wrap: tighter cells so the actions stay in view */
+.table.table-keys :is(th, td) {
+  padding-inline: 10px;
+}
+
+/* The question mark after a hint, and the tip it opens */
+.hint-help {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -6px 0 -6px 2px;
+  vertical-align: middle;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  cursor: help;
+  transition: color var(--duration-quick) var(--ease-out);
+}
+
+.hint-help:hover {
+  color: var(--ink);
+}
+
+.tip {
+  padding: 6px 12px;
+  border-radius: var(--radius-control);
+  font-size: 14px;
+}
+
+/* ---------- personal centre: a glass column of links beside glass sheets ---------- */
 
 .me {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
-  padding: var(--space-5) var(--frame) var(--section-gap);
   min-height: 70svh;
   align-content: start;
+  max-width: calc(var(--content-max) + var(--frame) * 2);
+  margin: 0 auto;
+  padding: var(--space-5) var(--frame) var(--section-gap);
 }
 
 .me-nav {
   display: flex;
   gap: var(--space-1);
+  padding: 3px;
   overflow-x: auto;
   white-space: nowrap;
 }
 
 .me-nav a {
   display: inline-flex;
+  flex: none;
   align-items: center;
+  gap: var(--space-2);
   min-height: 44px;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--glass);
+  color: var(--muted);
+  font-weight: 500;
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    color var(--duration-quick) var(--ease-out),
+    box-shadow var(--duration-quick) var(--ease-out);
 }
 
 .me-nav a:hover {
-  background: var(--sunk);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.me-nav {
+  position: relative;
+}
+
+.me-nav a {
+  position: relative;
+  z-index: 1;
+}
+
+/* HeroUI's ripple on a control that is not a HeroUI Button (usePressRipple), clipped to the control's shape */
+.press-ripple {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .me-nav a[aria-current="page"] {
-  background: var(--action);
+  border-color: transparent;
+  background: transparent;
   color: var(--action-ink);
   font-weight: 700;
 }
 
+/* An admin's back office under its own small heading, in the wide screen's column only; a row or the dock runs on */
+.me-nav-group {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .me-nav-group {
+    display: block;
+    margin: var(--space-3) var(--space-4) var(--space-1);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+}
+
+/* Between the phone's dock and the wide screen's column the tabs are a row that scrolls. It reaches 18px past its
+   place on every side (giving the room back with its margin), so a tab pulled toward the pointer keeps its ring and
+   glow inside the row's clip; only the tabs take the pointer, not that margin */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .me-nav {
+    margin: -18px;
+    padding: 18px;
+    pointer-events: none;
+  }
+
+  .me-nav > a {
+    pointer-events: auto;
+  }
+}
+
+.me-nav .nav-pill {
+  top: 0;
+  left: 0;
+  width: var(--pill-w, 0);
+  height: var(--pill-h, 0);
+  background: var(--action);
+  box-shadow: 0 6px 16px -8px rgb(12 12 14 / 0.5);
+  transform: translate(var(--pill-x, 0), var(--pill-y, 0));
+  transition:
+    transform 520ms var(--ease-spring),
+    width 520ms var(--ease-spring),
+    height 520ms var(--ease-spring),
+    opacity var(--duration-quick) var(--ease-in-out),
+    translate 480ms var(--ease-spring),
+    scale 480ms var(--ease-spring);
+}
+
+/* Each page of the personal centre comes in from the side of the tab it was chosen from (MeContent) */
+.me-main[data-enter] {
+  animation: me-in 460ms var(--ease-smooth-out) both;
+}
+
+/* Room under the header before a list, the personal centre or the submit page begins; less on a phone, where the
+   header is the dock */
+.page-main:is(.list-page, .me, .submit) {
+  padding-top: calc(var(--header-space) + var(--space-4));
+}
+
+@media (min-width: 768px) {
+  .page-main:is(.list-page, .me, .submit) {
+    padding-top: calc(var(--header-space) + var(--space-7));
+  }
+}
+
+.me-main[data-enter="next"] {
+  --from: 0 28px;
+}
+
+.me-main[data-enter="back"] {
+  --from: 0 -28px;
+}
+
+@media (max-width: 1023px) {
+  .me-main[data-enter="next"] {
+    --from: 28px 0;
+  }
+
+  .me-main[data-enter="back"] {
+    --from: -28px 0;
+  }
+}
+
+@keyframes me-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--blur-medium));
+    translate: var(--from);
+  }
+}
+
 .me-main {
   display: grid;
+  /* One column that never grows past the page, however long a word in it (an appeal typed without a space) */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
   align-content: start;
   min-width: 0;
@@ -489,45 +1473,423 @@
   gap: var(--space-3);
 }
 
+/* A section of a working page: a glass sheet with its title and icon */
 .panel {
   display: grid;
   justify-items: start;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  background: var(--surface);
+  gap: var(--space-4);
+  padding: clamp(var(--space-5), 3vw, var(--space-6));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.block-title svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
 }
 
 .panel .state-note {
-  padding: var(--space-2) 0;
+  justify-self: stretch;
+  padding: var(--space-5) var(--space-4);
+  background: transparent;
 }
 
 .panel .state-note-title {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .panel-danger {
-  background: var(--accent-tint);
+  border-color: color-mix(in oklab, var(--accent) 30%, transparent);
+  background: color-mix(in oklab, var(--accent-tint) 70%, var(--glass));
 }
 
-.panel-danger .button {
-  background: var(--accent);
-  color: var(--accent-ink);
+.panel-danger .block-title svg {
+  color: var(--accent);
+}
+
+/* Permanent API keys (PermanentKeys): a badge tells the state; allowed, the sheet takes a warning edge */
+.state-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--space-2);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--ink) 8%, transparent);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.block-title .state-badge svg {
+  width: 15px;
+  height: 15px;
+  color: currentcolor;
+}
+
+.permanent-keys {
+  transition:
+    border-color var(--duration-slow) var(--ease-smooth-out),
+    box-shadow var(--duration-slow) var(--ease-smooth-out);
+}
+
+.permanent-keys[data-allowed] {
+  border-color: color-mix(in oklab, var(--warning) 45%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--warning) 10%, transparent),
+    var(--shadow-soft);
+}
+
+/* The badge and the words of the new state come in out of a blur (label-in, as the button's words do) */
+:is(.state-badge, .state-words)[data-changed] {
+  animation: label-in 320ms var(--ease-smooth-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.state-badge, .state-words)[data-changed] {
+    animation-name: label-fade;
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] :is(.state-badge, .state-words)[data-changed] {
+  animation-name: label-fade;
+}
+
+.permanent-keys[data-allowed] .state-badge {
+  background: color-mix(in oklab, var(--warning) 16%, transparent);
+  color: var(--warning);
+}
+
+.button-danger-outline {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  color: var(--accent);
+}
+
+/* Beside the red delete, the other step out is an outline in the same red */
+.panel-danger .button:not(.button-danger) {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  color: var(--accent);
+}
+
+/* Each way of leaving: what it does on the left, its button on the right */
+.danger-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  width: 100%;
+  padding-top: var(--space-4);
+  border-top: 1px solid color-mix(in oklab, var(--accent) 20%, transparent); /* taste-skill-ignore: two steps of one sheet need their rule */
+}
+
+.danger-row:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.danger-row > div {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 46ch;
+}
+
+.danger-row h3 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.danger-row p {
+  color: var(--muted);
+}
+
+/* ---------- 我的帳號: the picture, four tiles two by two, then the way out ---------- */
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+@media (max-width: 767px) {
+  .account-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.account-grid > .panel {
+  align-content: start;
+}
+
+.account-grid .field {
+  justify-self: stretch;
+}
+
+.account-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.avatar-now {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.avatar-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.avatar-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.avatar-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: 7px 18px 7px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--glass);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out),
+    box-shadow var(--duration-quick) var(--ease-out);
+}
+
+.avatar-option:hover:not(:disabled) {
+  background: var(--surface);
+}
+
+.avatar-option[aria-checked="true"] {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ink) 12%, transparent);
+}
+
+.avatar-option:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.avatar-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 500;
+}
+
+/* Renamed: the field's edge turns green for a moment and the button says so */
+.rename-field {
+  width: 100%;
+}
+
+.rename-field[data-saved] .input {
+  border-color: var(--success);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--success) 18%, transparent);
+}
+
+.button[data-saved] {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.switch-label {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* The switch pulls like the other controls, with room for its light; on, its track is blue */
+.motion-switch {
+  padding: 6px 12px 6px 6px;
+  border-radius: var(--radius-full);
+}
+
+.motion-switch[data-selected="true"] .switch-track {
+  background: var(--switch-on);
+}
+
+/* The standing's colour (--tone): its mark before the words, and a glow from the card's top left corner */
+.standing-card {
+  --tone: var(--success);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.standing-card[data-status="suspended"] {
+  --tone: var(--warning);
+}
+
+.standing-card[data-status="banned"] {
+  --tone: var(--accent);
+}
+
+.standing-card::before {
+  content: "";
+  position: absolute;
+  top: -45%;
+  left: -25%;
+  z-index: -1;
+  width: 75%;
+  aspect-ratio: 1;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--tone) 26%, transparent), transparent);
+  pointer-events: none;
 }
 
 .standing-text {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   font-size: clamp(24px, 3vw, 32px);
   font-weight: 700;
   line-height: 1.35;
 }
 
-.standing-card[data-status="banned"] .standing-text,
-.standing-card[data-status="suspended"] .standing-text {
-  color: var(--accent);
+.standing-mark {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  color: var(--tone);
+}
+
+.standing-card:is([data-status="banned"], [data-status="suspended"]) .standing-text {
+  color: var(--tone);
+}
+
+.standing-head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* Until when, in small type under the title, lined up with the title's words rather than its mark */
+.standing-until {
+  padding-left: calc(clamp(24px, 3vw, 32px) + var(--space-3));
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* A new picture comes into focus where the old one was (AvatarPicker) */
+.avatar-pop {
+  display: inline-grid;
+}
+
+.avatar-pop[data-changed] {
+  animation: avatar-pop 480ms var(--ease-smooth-out) both;
+}
+
+@keyframes avatar-pop {
+  from {
+    opacity: 0.25;
+    filter: blur(10px);
+  }
+}
+
+/* The chosen option's picture carries a tick in its corner; one chosen just now pops and draws it in */
+.avatar-picked {
+  position: relative;
+  display: inline-grid;
+}
+
+.avatar-tick {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--success);
+  box-shadow: 0 0 0 2px var(--surface);
+  color: var(--action-ink);
+}
+
+.avatar-tick[data-draw] {
+  animation: tick-pop 420ms var(--ease-spring) both;
+}
+
+@keyframes tick-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-tick[data-draw] {
+    animation: none;
+  }
+
+  .avatar-pop[data-changed] {
+    animation-name: avatar-fade;
+  }
+
+  @keyframes avatar-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .avatar-tick[data-draw] {
+  animation: none;
+}
+
+:root[data-motion="reduce"] .avatar-pop[data-changed] {
+  animation-name: avatar-fade;
+}
+
+@keyframes avatar-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+/* How much of the strike limit is used, filling from green through to the brand's red */
+.strike-meter {
+  position: relative;
+  justify-self: stretch;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--sunk);
+}
+
+.strike-meter::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--fill) * 100%);
+  min-width: 8px;
+  border-radius: inherit;
+  background: color-mix(in oklab, var(--accent) calc(var(--fill) * 100%), var(--success));
+  transition: width 700ms var(--ease-spring);
 }
 
 .plain-list {
   display: grid;
-  gap: var(--space-3);
   width: 100%;
 }
 
@@ -537,164 +1899,678 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1) var(--space-4);
-  min-height: 44px;
+  min-height: 56px;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line); /* taste-skill-ignore: rows of a list need their rule */
+}
+
+.plain-list li:first-child {
+  border-top: 0;
 }
 
 .record-list li {
   align-items: flex-start;
 }
 
+.standing-records {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+.record-text {
+  display: grid;
+  flex: 1 1 16em;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The last thing on a record's line is always a pill of one size, whether it is the way to appeal or where the appeal
+   stands, so they line up down the list and 查看內容 stays put beside them */
+.record-actions :is(.record-pill, .appeal-status) {
+  justify-content: center;
+  min-width: 7.5rem;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.record-pill {
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+/* A status that has just taken its button's place comes in */
+.appeal-status[data-enter] {
+  animation: chip-in var(--duration-very-slow) var(--ease-bounce) both;
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--blur-small));
+    scale: 0.86;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appeal-status[data-enter] {
+    animation: page-in-reduced var(--duration-quick) linear;
+  }
+}
+
+:root[data-motion="reduce"] .appeal-status[data-enter] {
+  animation: page-in-reduced var(--duration-quick) linear;
+}
+
+/* An appeal as a short thread: status and what it is about, the appeal itself, the back office's reply under it */
+.appeal-entries {
+  display: grid;
+  width: 100%;
+}
+
+.appeal-entry {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line); /* taste-skill-ignore: rows of a list need their rule */
+}
+
+.appeal-entry:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.appeal-entry:last-child {
+  padding-bottom: 0;
+}
+
+.appeal-entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.appeal-entry-target {
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.appeal-entry-time {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.appeal-entry-statement,
+.appeal-reply-text {
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.appeal-reply {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--sunk) 75%, transparent);
+}
+
+.appeal-reply-head {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.record-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.record-actions {
+  display: inline-flex;
+  flex: none;
+  /* At the right end of its line, also when a narrow screen puts it on a line of its own */
+  margin-left: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-3);
+}
+
+/* The comments' dialog with only its sentence left (ViolationContent): the words on their stage, the brand's red for
+   what was taken down, no link to follow */
+.violation-dialog .morph-inner {
+  justify-items: stretch;
+}
+
+.violation-dialog .comments-quote {
+  --glow: var(--accent);
+}
+
+.violation-dialog .comments-quote:hover {
+  border-color: color-mix(in oklab, var(--glow) 24%, var(--line));
+}
+
+.identity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* A passkey: where it is kept, its name and the day it was added, on one centred line */
+.passkey {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.passkey .field-hint {
+  line-height: 1.4;
+}
+
+.passkey-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+
+.passkey-mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mark-windows {
+  color: var(--brand-windows);
+}
+
+.mark-icloud {
+  color: var(--brand-icloud);
+}
+
+.mark-1password {
+  color: var(--brand-1password);
+}
+
+.mark-bitwarden {
+  color: var(--brand-bitwarden);
+}
+
+.mark-samsung {
+  color: var(--brand-samsung);
+}
+
+.mark-keepass {
+  color: var(--brand-keepass);
+}
+
+.mark-lastpass {
+  color: var(--brand-lastpass);
+}
+
+.mark-yubico {
+  color: var(--brand-yubico);
+}
+
+/* A state, said plainly: the words in the ink on a quiet hairline, with a small dot of its colour before them. Yellow
+   for waiting or held back, red for taken down or banned, green for all well */
+.status-chip {
+  --tone: var(--warning);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 11px 2px 9px;
+  border: 1px solid color-mix(in oklab, var(--tone) 26%, var(--line));
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--tone) 5%, var(--glass));
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.status-chip::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--tone);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--tone) 18%, transparent);
+}
+
+.status-chip[data-tone="danger"] {
+  --tone: var(--accent);
+}
+
+.status-chip[data-tone="success"] {
+  --tone: var(--success);
+}
+
+/* 說說官方 and any account the site vouches for: a check after the name wherever it is written */
+.verified-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* A blue badge with a white check, the same in light and dark: lucide's badge outline filled (its first path), the
+   check (its second) drawn white on it */
+:is(.verified-mark, .avatar-verified-mark) {
+  flex: none;
+}
+
+:is(.verified-mark, .avatar-verified-mark) path:first-child {
+  fill: var(--verified-mid);
+  stroke: var(--verified-mid);
+}
+
+:is(.verified-mark, .avatar-verified-mark) path:last-child {
+  stroke: var(--verified-ink);
+}
+
+/* Its own page: 已驗證 on a blue that flows slowly under it. The flow is a wide band sliding under the words (a
+   transform), so it costs a phone nothing per frame */
+.verified-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  padding: 3px 11px 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--verified-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+  vertical-align: middle;
+  isolation: isolate;
+}
+
+.verified-badge::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 300%;
+  /* Two of the same cycle side by side: sliding by half of it comes back to where it began, with no seam */
+  background: linear-gradient(100deg, var(--verified-deep), var(--verified-mid), var(--verified-bright), var(--verified-mid), var(--verified-deep), var(--verified-mid), var(--verified-bright), var(--verified-mid), var(--verified-deep));
+  animation: verified-flow 9s linear infinite;
+}
+
+@keyframes verified-flow {
+  to {
+    translate: -50% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verified-badge::before {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .verified-badge::before {
+  animation: none;
+}
+
+.profile-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* The check on the picture's bottom right corner, set in a ring of the page so it reads against any picture */
+.avatar-verified {
+  position: relative;
+  display: inline-block;
+  flex: none;
+}
+
+.avatar-verified-mark {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+}
+
+.quote-card-gone {
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* A checkbox drawn as a rounded box that fills with ink and writes its tick in */
+.check input {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out),
+    scale 320ms var(--ease-spring);
+}
+
+.check input::after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background: var(--action-ink);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5 9.5 18 20 6.5'/%3E%3C/svg%3E") center / contain no-repeat;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--duration-fast) var(--ease-smooth-out);
+}
+
+.check input:checked {
+  border-color: var(--action);
+  background: var(--action);
+  scale: 1.06;
+}
+
+.check input:checked::after {
+  clip-path: inset(0);
+}
+
+/* A choice of one: a ring whose dot springs in */
+.check input[type="radio"] {
+  border-radius: var(--radius-full);
+}
+
+.check input[type="radio"]::after {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  mask: none;
+  clip-path: none;
+  scale: 0;
+  transition: scale 360ms var(--ease-spring);
+}
+
+.check input[type="radio"]:checked::after {
+  scale: 1;
+}
+
+.check input:active:not(:disabled) {
+  scale: 0.9;
+}
+
+.check input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Tables sit in a glass sheet of their own, the header quiet and each row lighting under the pointer */
 .table-scroll {
   overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
 }
 
 .table {
   width: 100%;
-  background: var(--surface);
   font-size: 14px;
 }
 
 .table th {
-  text-align: left;
+  color: var(--muted);
+  font-size: 13px;
   font-weight: 700;
+  text-align: left;
   white-space: nowrap;
 }
 
 .table th,
 .table td {
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--sunk); /* taste-skill-ignore: §12.7 allows hairlines in tables */
+  border-bottom: 1px solid var(--line); /* taste-skill-ignore: §12.7 allows hairlines in tables */
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr {
+  transition: background-color var(--duration-quick) var(--ease-out);
+}
+
+.table tbody tr:hover {
+  background: color-mix(in oklab, var(--ink) 3%, transparent);
 }
 
 .table td {
   vertical-align: middle;
 }
 
-.table code {
+/* On a phone a stacked table's rows are cards, each value under its column's name */
+@media (max-width: 639px) {
+  .table-stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .table-stack,
+  .table-stack tbody {
+    display: block;
+  }
+
+  .table-stack tbody tr {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--line); /* taste-skill-ignore: §12.7 allows hairlines in tables */
+  }
+
+  .table-stack tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .table-stack td {
+    display: grid;
+    grid-template-columns: 5em minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table-stack td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .table-stack .table-lead {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .table-stack .table-lead::before {
+    content: none;
+  }
+}
+
+/* The way back from a quote, with its key beside it */
+.tool-key {
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--muted);
   font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* A touch screen has no Esc to press */
+@media (pointer: coarse) {
+  .tool-key {
+    display: none;
+  }
+}
+
+.table code {
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--sunk);
+  font-family: var(--font-code);
+  font-size: 13px;
   white-space: nowrap;
 }
 
 .table .skeleton-lines > span {
   height: 24px;
   width: 100%;
+  background: var(--sunk);
 }
 
 .table-actions {
   display: inline-flex;
-  gap: var(--space-3);
+  gap: var(--space-1);
   white-space: nowrap;
 }
 
+/* A new key shown once: ink on a dark slab, to be copied now */
+/* The new key, shown once (SecretReveal): a glass sheet that drops in, the spinner-to-check disc on its left, the key in
+   a field with its copy button beside it. Once the tick is drawn the sheet's edge turns green */
 .secret {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  background: var(--surface);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
+  transition: border-color var(--duration-slow) var(--ease-smooth-out);
+  animation: secret-in 420ms var(--ease-smooth-out) both;
+}
+
+.secret[data-phase="done"] {
+  border-color: color-mix(in oklab, var(--success) 45%, transparent);
+}
+
+@keyframes secret-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--blur-medium));
+    transform: translateY(-10px);
+  }
 }
 
 .secret:focus-visible {
   outline-offset: -2px;
 }
 
+/* The disc stands in the sheet's flow here, not over a card */
+.secret .send-status {
+  position: static;
+}
+
 .secret-body {
   display: grid;
-  gap: var(--space-3);
-  flex: 1 1 280px;
+  gap: var(--space-4);
   min-width: 0;
 }
 
+.secret-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.secret-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The copy button is its icon alone, as tall as the field and as wide */
+.secret-copy {
+  width: 44px;
+  padding: 0;
+}
+
 .secret-value {
-  display: block;
-  padding: var(--space-3);
-  background: var(--action);
-  color: var(--action-ink);
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 11px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--sunk);
+  color: var(--ink);
   font-family: var(--font-code);
   font-size: 14px;
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }
 
-/* ---------- dialogs: M-05 in CSS, and the bottom sheet of M-24 on a phone ---------- */
-
-html:has(.plain-dialog[open]) {
-  overflow: hidden;
-}
-
-.plain-dialog {
-  max-width: none;
-  max-height: none;
-  margin: auto auto 0;
-  padding: 0;
-  background: transparent;
-  color: var(--ink);
-  opacity: 0;
-  transform: translateY(100%);
-  transition:
-    opacity var(--duration-fast) var(--ease-smooth-out),
-    transform var(--duration-fast) var(--ease-smooth-out),
-    overlay var(--duration-fast) allow-discrete,
-    display var(--duration-fast) allow-discrete;
-}
-
-.plain-dialog[open] {
-  opacity: 1;
-  transform: none;
-  transition-duration: var(--duration-medium);
-}
-
-@starting-style {
-  .plain-dialog[open] {
-    opacity: 0;
-    transform: translateY(100%);
+@media (max-width: 639px) {
+  .secret {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-5);
   }
 }
 
-.plain-dialog::backdrop {
-  background: rgb(0 0 0 / 0.4);
-}
-
-.morph-dialog {
-  margin: auto auto 0;
-}
-
-.plain-dialog .morph-card,
-.morph-dialog .morph-card {
-  width: 100vw;
-  max-height: 90svh;
-  overflow-y: auto;
-  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
-}
-
-@media (min-width: 640px) {
-  .plain-dialog,
-  .morph-dialog {
-    margin: auto;
+@media (prefers-reduced-motion: reduce) {
+  .secret {
+    animation-name: secret-fade;
   }
 
-  .plain-dialog {
-    transform: scale(var(--scale-large));
-    transition-duration: var(--duration-quick);
-  }
-
-  .plain-dialog[open] {
-    transition-duration: var(--duration-fast);
-  }
-
-  @starting-style {
-    .plain-dialog[open] {
+  @keyframes secret-fade {
+    from {
       opacity: 0;
-      transform: scale(var(--scale-large));
     }
   }
-
-  .plain-dialog .morph-card,
-  .morph-dialog .morph-card {
-    width: min(560px, calc(100vw - var(--frame) * 2));
-    padding-bottom: var(--space-6);
-  }
 }
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .secret {
+  animation-name: secret-fade;
+}
+
+@keyframes secret-fade {
+    from {
+      opacity: 0;
+    }
+  }
 
 /* ---------- md ---------- */
 
@@ -706,103 +2582,93 @@ html:has(.plain-dialog[open]) {
     overflow: visible;
   }
 
-  .list-filter .type-case {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-  }
-
-  .submit {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .login {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: var(--space-6);
-    align-items: stretch;
-  }
-
-  .login-panel {
-    align-content: center;
-  }
-
-  .login-paper {
+  .legal-list {
     display: grid;
-    place-items: center;
-    min-height: 60svh;
-    background: var(--stock-original);
-    color: var(--stock-ink);
-    font-size: clamp(160px, 24vw, 360px);
-    line-height: 1;
-    overflow: hidden;
+    grid-template-columns: 11em minmax(0, 1fr);
   }
 
-  .submit-preview {
-    position: sticky;
-    top: var(--space-4);
+  .legal-list dt,
+  .legal-list dd {
+    padding: var(--space-3) 0;
+    border-top: 1px solid var(--line);
   }
 
-  .submit-preview .sheet {
-    min-height: 60svh;
-    flex-direction: column;
-  }
-
-  .submit-preview .sheet-source {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-self: auto;
-    writing-mode: horizontal-tb;
+  .legal-list dt {
+    padding-right: var(--space-4);
   }
 }
 
-/* ---------- lg: the paper stays put while the talk scrolls past it ---------- */
+/* ---------- lg ---------- */
 
 @media (min-width: 1024px) {
-  .detail {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    gap: var(--space-6);
-    align-items: start;
-  }
-
-  .detail-paper {
-    position: sticky;
-    top: var(--space-3);
-    height: calc(100svh - var(--space-3) * 2);
-  }
-
-  .detail-paper .sheet {
-    height: 100%;
-  }
-
   .me {
-    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-columns: 232px minmax(0, 1fr);
     gap: var(--space-6);
     align-items: start;
   }
 
   .me-nav {
     position: sticky;
-    top: var(--space-3);
+    top: var(--header-space);
     flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2);
     overflow: visible;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    background: var(--glass);
+    box-shadow: var(--shadow-soft);
+    white-space: normal;
+    /* A column never scrolls sideways, so the row's fading edges never apply here */
+    mask-image: none;
   }
 
-  .quote-row-item {
-    padding: var(--space-5) var(--space-6);
+  .me-nav a {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .me-nav a:hover {
+    background: color-mix(in oklab, var(--ink) 5%, transparent);
+  }
+
+  .me-nav a[aria-current="page"] {
+    border-color: transparent;
+    background: transparent;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .route-tabs-block,
-  .route-tabs a,
-  .plain-dialog {
+  .route-tabs .nav-pill,
+  .route-tabs :is(a, button),
+  .check input,
+  .check input::after,
+  .me-nav .nav-pill,
+  .strike-meter::after {
     transition-duration: 0ms;
   }
 
-  .plain-dialog {
-    transform: none;
-  }
-
   .field-error,
-  .form-error {
+  .form-error,
+  .me-main[data-enter],
+  .state-note {
     animation: none;
   }
+}
+
+/* The same for 減少動畫 on this device (lib/motion-pref.ts) */
+:root[data-motion="reduce"] .route-tabs .nav-pill,
+:root[data-motion="reduce"] .route-tabs :is(a, button),
+:root[data-motion="reduce"] .check input,
+:root[data-motion="reduce"] .check input::after,
+:root[data-motion="reduce"] .me-nav .nav-pill,
+:root[data-motion="reduce"] .strike-meter::after {
+  transition-duration: 0ms;
+}
+
+:root[data-motion="reduce"] .field-error,
+:root[data-motion="reduce"] .form-error,
+:root[data-motion="reduce"] .me-main[data-enter],
+:root[data-motion="reduce"] .state-note {
+  animation: none;
 }
