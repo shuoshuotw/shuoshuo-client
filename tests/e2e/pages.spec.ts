@@ -186,6 +186,13 @@ test.describe("UI-01: visual baselines", () => {
           await page.goto(path);
           await page.evaluate(() => document.fonts.ready);
           await expect(page.locator(".skeleton-lines")).toHaveCount(0);
+          // The CJK font comes in slices by character range: words the page fetched after it loaded ask for theirs only
+          // once laid out, so wait two frames for that and then for the fonts again (on CI, far from the font host,
+          // the screenshot otherwise caught the fallback face)
+          await page.evaluate(async () => {
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            await document.fonts.ready;
+          });
           await expect(page).toHaveScreenshot(`${name}-${colorScheme}-${width}.png`);
         });
       }
