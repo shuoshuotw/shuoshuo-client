@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { test as base, type BrowserContext, expect, type Page } from "@playwright/test";
+import { test as base, type BrowserContext, expect, type Locator, type Page } from "@playwright/test";
 
 export { expect };
 
-export const CORE = "http://localhost:5001";
+export const CORE = process.env.CORE_URL ?? "http://localhost:5001";
 const SUPABASE = "http://127.0.0.1:54321";
 
 // CI passes it in; locally Core's own env file holds the CLI's default
@@ -101,10 +101,41 @@ export async function signOut(page: Page) {
 /** A Traditional Chinese quote that has never existed, so duplicate detection stays out of the way. */
 export const uniqueQuote = (text = "測試") => `${text}${randomUUID().replaceAll("-", "").replace(/\d/g, (digit) => "零一二三四五六七八九"[Number(digit)]!).slice(0, 20)}`;
 
+/**
+ * Chooses from a select (ChoiceField) the way a person does: its button, then the option by its words. The hidden native
+ * select HeroUI keeps under the same label takes a value without the field ever hearing of it.
+ */
+export async function choose(scope: Page | Locator, label: string, option: string) {
+  const page = "page" in scope ? scope.page() : scope;
+  const field = scope.locator(".field").filter({ has: page.locator(".choice-label", { hasText: new RegExp(`^${label}$`) }) });
+  const list = page.getByRole("listbox");
+  // A press as long as a person's: the list opens as the mouse lets go, and a press of no length at all can miss it
+  await expect(async () => {
+    await field.locator(".choice-trigger").click({ delay: 70 });
+    await expect(list).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 15_000 });
+  await page.getByRole("option", { name: option, exact: true }).click({ delay: 70 });
+  // The list folds back onto its button before the next step can reach what was under it
+  await expect(list).toHaveCount(0);
+  await expect(field.locator(".choice-trigger")).toContainText(option);
+}
+
+/**
+ * A dialog takes input once its card has landed: until then it is inert (MorphDialog), a person cannot type in it, and a
+ * fill made there is lost. Wait for this before filling a field in a dialog that has just been opened.
+ */
+export async function landed(dialog: Locator) {
+  await expect(dialog).toHaveJSProperty("inert", false);
+  return dialog;
+}
+
+/** The field by role: a toast or the original-work tip can also mention 出處. */
+export const sourceField = (scope: Page | Locator) => scope.getByRole("textbox", { name: "出處" });
+
 export async function submitQuote(page: Page, content = uniqueQuote()) {
   await page.goto("/submit");
   await page.getByLabel("說說", { exact: true }).fill(content);
-  await page.getByLabel("出處").fill("全堆疊測試");
+  await sourceField(page).fill("全堆疊測試");
   await page.getByRole("radio", { name: "原創" }).check({ force: true });
   // M-08 ends on the home page, so the new quote's id comes from Core's answer
   const created = page.waitForResponse((response) => response.url().endsWith("/v1/quotes") && response.request().method() === "POST");
@@ -116,6 +147,10 @@ export async function submitQuote(page: Page, content = uniqueQuote()) {
 }
 
 export const quoteHeading = (page: Page) => page.getByTestId("quote-text");
+
+/** A like or a favourite is sent after the button has already turned: a reload must wait for Core's answer to it. */
+export const reactionSent = (page: Page, kind: "like" | "favorite", method = "PUT") =>
+  page.waitForResponse((response) => response.url().endsWith(`/${kind}`) && response.request().method() === method);
 
 export async function coreToken(user: TestUser) {
   const session = await checked(

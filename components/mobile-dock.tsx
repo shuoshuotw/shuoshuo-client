@@ -4,10 +4,10 @@ import { Button } from "@heroui/react";
 import { BookOpen, FileText, Flame, type LucideIcon, Menu, PenLine, Quote, Rocket, Shield, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { DOCS_URL } from "@/lib/docs";
 import { AuthButton } from "./auth-button";
 import { LinkButton } from "./link-button";
 import { Logo } from "./logo";
-import { DOCS_URL } from "./site-header";
 import { ThemeToggle } from "./theme-toggle";
 
 const TABS: { href: string; label: string; icon: LucideIcon | null }[] = [
@@ -164,10 +164,11 @@ export function MobileDock() {
     [current, pathname],
   );
 
-  const menu = useMemo(
+  // What the menu holds is the same whether it is open or shut: kept apart, so opening it renders none of these links
+  // again (each is a HeroUI button, and rendering all of them was most of a phone's wait between the tap and the move)
+  const sheet = useMemo(
     () => (
-      <div ref={morph} className="t-morph dock-morph" data-open={menuOpen}>
-        <div id="dock-menu" className="t-morph-menu dock-sheet" inert={!menuOpen}>
+      <>
           <div className="dock-sheet-head">
             <Logo />
             <span>說說</span>
@@ -202,6 +203,16 @@ export function MobileDock() {
           <div className="dock-sheet-foot">
             <ThemeToggle />
           </div>
+      </>
+    ),
+    [pathname],
+  );
+
+  const menu = useMemo(
+    () => (
+      <div ref={morph} className="t-morph dock-morph" data-open={menuOpen}>
+        <div id="dock-menu" className="t-morph-menu dock-sheet" inert={!menuOpen}>
+          {sheet}
         </div>
         {/* Pinned to the corner the surface grows from, so it stays put while the box opens out of it */}
         <Button
@@ -221,7 +232,7 @@ export function MobileDock() {
         </Button>
       </div>
     ),
-    [menuOpen, pathname],
+    [menuOpen, sheet],
   );
 
   const account = useMemo(

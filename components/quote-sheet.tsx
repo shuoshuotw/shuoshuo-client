@@ -16,7 +16,9 @@ export function toRuns(chars: string[]) {
   const runs: string[][] = [];
   chars.forEach((char, index) => {
     const previous = chars[index - 1];
-    if (runs.length > 0 && (NO_LINE_START.has(char) || (previous !== undefined && NO_LINE_END.has(previous)))) runs.at(-1)!.push(char);
+    // A line break stands alone: a mark never joins it, so the break is never inside a run
+    const joins = char !== "\n" && previous !== "\n" && (NO_LINE_START.has(char) || (previous !== undefined && NO_LINE_END.has(previous)));
+    if (runs.length > 0 && joins) runs.at(-1)!.push(char);
     else runs.push([char]);
   });
   return runs;
@@ -43,19 +45,20 @@ export function QuoteType({ content }: { content: string }) {
     <blockquote className={`quote ${quoteSize(chars.length)}`} data-testid="quote-text">
       <span className="sr-only">{content}</span>
       <span aria-hidden="true">
-        {toRuns(chars).map((run, runIndex) => (
-          <span className="char-run" key={runIndex}>
-            {run.map((char, index) =>
-              char === "\n" ? (
-                <br key={index} />
-              ) : (
+        {toRuns(chars).map((run, runIndex) =>
+          // The break sits between the runs: inside an inline-block run it broke nothing, and Safari drew an empty line for it
+          run[0] === "\n" ? (
+            <br key={runIndex} />
+          ) : (
+            <span className="char-run" key={runIndex}>
+              {run.map((char, index) => (
                 <span className="char" data-char key={index}>
                   {char}
                 </span>
-              ),
-            )}
-          </span>
-        ))}
+              ))}
+            </span>
+          ),
+        )}
       </span>
     </blockquote>
   );

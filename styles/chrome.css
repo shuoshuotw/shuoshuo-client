@@ -78,11 +78,7 @@ body {
   }
 }
 
-/* They fade into the gradient's own colours under every page, not into a band of flat ground */
-.app-scroll {
-  --veil: color-mix(in oklab, var(--mesh-2) 60%, var(--mesh-4));
-}
-
+/* They fade into the backdrop's own colours at each edge, not into a band of flat ground */
 .app-scroll::before {
   top: 0;
   background: linear-gradient(var(--veil) 20%, transparent);
@@ -236,10 +232,13 @@ body {
   display: none;
 }
 
+/* max-width: the reset caps every image at its box's width, which lets a row squeeze a picture into an oval when the
+   words beside it run long (a wrapper around it is what the row lays out, so flex: none on the picture is not enough) */
 .avatar {
   display: inline-grid;
   place-items: center;
   flex: none;
+  max-width: none;
   border-radius: var(--radius-full);
   object-fit: cover;
 }
@@ -867,6 +866,14 @@ body {
   border-radius: var(--radius-control);
 }
 
+/* What was tapped to open a quote or a profile gives a little, at once (motion/quote-morph.ts press): the page stands
+   still while the next one is made ready, and this is what it stands still showing */
+[data-pressing] {
+  scale: 0.985;
+  opacity: 0.82;
+  transition: none !important;
+}
+
 /* ---------- the phone's dock ---------- */
 
 .dock {
@@ -942,8 +949,10 @@ body {
   transform: none;
 }
 
-/* Menu starts slid in + scaled + blurred; reveals on open. Laid out at the open size from the start and clipped by the
-   growing box, so nothing rewraps while it grows */
+/* Menu starts slid in + scaled; reveals on open. Laid out at the open size from the start and clipped by the growing
+   box, so nothing rewraps while it grows. It comes in on the box's own bounce, so the two move as one thing (on a
+   plainer ease the box sprang and what it held did not), and without the skill's blur: a filter on a sheet this size
+   is drawn again on every frame, which a phone has no time for */
 .t-morph-menu {
   position: absolute;
   inset: auto auto 0 0;
@@ -952,19 +961,19 @@ body {
   opacity: 0;
   transform: translateX(calc(-1 * var(--morph-slide))) scale(var(--morph-scale));
   transform-origin: 0 100%;
-  filter: blur(var(--morph-blur));
   pointer-events: none;
   transition:
     opacity var(--morph-fade-dur) var(--morph-close-ease),
-    transform var(--morph-open-dur) var(--morph-close-ease),
-    filter var(--morph-fade-dur) var(--morph-close-ease);
+    transform var(--morph-close-dur) var(--morph-close-ease);
 }
 
 .t-morph[data-open="true"] .t-morph-menu {
   opacity: 1;
   transform: translateX(0) scale(1);
-  filter: blur(0);
   pointer-events: auto;
+  transition:
+    opacity var(--morph-fade-dur) var(--morph-close-ease),
+    transform var(--morph-open-dur) var(--morph-ease);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1036,6 +1045,72 @@ body {
   padding-right: 8px;
 }
 
+/* What the menu holds comes up out of the corner it grows from, the nearest row first, each on a spring like the box's.
+   Closing, they are simply gone, and wait out of sight for the next opening */
+.dock-sheet > :is(.dock-sheet-head, .dock-menu-legal, .dock-sheet-foot),
+.dock-menu-list > li {
+  opacity: 0;
+  translate: -12px 10px;
+  transition:
+    opacity 100ms var(--ease-out),
+    translate 0s linear 220ms;
+}
+
+.t-morph[data-open="true"] .dock-sheet > :is(.dock-sheet-head, .dock-menu-legal, .dock-sheet-foot),
+.t-morph[data-open="true"] .dock-menu-list > li {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity 220ms var(--ease-out) var(--rise, 0ms),
+    translate 520ms var(--ease-spring) var(--rise, 0ms);
+}
+
+.dock-sheet-foot {
+  --rise: 30ms;
+}
+
+.dock-menu-legal {
+  --rise: 58ms;
+}
+
+.dock-menu-list > li:nth-last-child(1) {
+  --rise: 86ms;
+}
+
+.dock-menu-list > li:nth-last-child(2) {
+  --rise: 114ms;
+}
+
+.dock-menu-list > li:nth-last-child(3) {
+  --rise: 142ms;
+}
+
+.dock-menu-list > li:nth-last-child(4) {
+  --rise: 170ms;
+}
+
+.dock-menu-list > li:nth-last-child(n + 5) {
+  --rise: 198ms;
+}
+
+.dock-sheet-head {
+  --rise: 226ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-sheet > :is(.dock-sheet-head, .dock-menu-legal, .dock-sheet-foot),
+  .dock-menu-list > li {
+    translate: none;
+    transition: none !important;
+  }
+}
+
+:root[data-motion="reduce"] .dock-sheet > :is(.dock-sheet-head, .dock-menu-legal, .dock-sheet-foot),
+:root[data-motion="reduce"] .dock-menu-list > li {
+  translate: none;
+  transition: none !important;
+}
+
 @media (min-width: 768px) {
   :root {
     --header-space: 96px;
@@ -1103,9 +1178,10 @@ body {
     bottom: 0;
   }
 
-  /* A page's bar in the slot takes the dock's own face, whatever its own stylesheet gives it elsewhere */
+  /* A page's bar in the slot takes the dock's own face, whatever its own stylesheet gives it elsewhere. The pages' bar
+     wears it on a layer behind its tabs (below) */
   .dock-round,
-  .dock-tabs,
+  .dock-tabs::before,
   .dock .dock-slot > * {
     border: 1px solid var(--line);
     background: var(--glass);
@@ -1122,7 +1198,7 @@ body {
 
   @media (pointer: coarse) {
     .dock-round,
-    .dock-tabs,
+    .dock-tabs::before,
     .dock .dock-slot > * {
       background: color-mix(in oklab, var(--surface) 94%, transparent);
       backdrop-filter: none;
@@ -1164,16 +1240,27 @@ body {
     }
   }
 
-  /* The pages: a bar that folds into the round menu button when the page scrolls down */
+  /* The pages: a bar that folds into the round menu button when the page scrolls down. The bar itself never changes
+     size: only its face (the layer behind the tabs) closes up to the left, so folding lays out that one box and the
+     tabs are not squeezed on the way, as they were when the whole bar narrowed. Folding is quick and plain, the tabs
+     gone first; opening out is the spring, the tabs coming back one after another once there is room for them */
   .dock-tabs {
     right: 64px;
     left: 0;
+    isolation: isolate;
     display: flex;
     height: 56px;
     padding: 4px;
-    overflow: hidden;
     border-radius: var(--radius-full);
-    transition: right 540ms var(--ease-spring);
+  }
+
+  .dock-tabs::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    transition: right 560ms var(--ease-spring);
   }
 
   .dock-tab {
@@ -1186,9 +1273,21 @@ body {
     color: var(--muted);
     font-size: 11px;
     transition:
-      opacity 220ms var(--ease-out) 120ms,
-      transform 420ms var(--ease-spring) 80ms,
+      opacity 200ms var(--ease-out) calc(140ms + var(--nth, 0) * 36ms),
+      transform 460ms var(--ease-spring) calc(120ms + var(--nth, 0) * 36ms),
       background-color var(--duration-quick) var(--ease-out);
+  }
+
+  .dock-tab:nth-of-type(2) {
+    --nth: 1;
+  }
+
+  .dock-tab:nth-of-type(3) {
+    --nth: 2;
+  }
+
+  .dock-tab:nth-of-type(4) {
+    --nth: 3;
   }
 
   .dock-tab[data-active="true"] {
@@ -1244,9 +1343,16 @@ body {
     box-shadow: none;
   }
 
+  /* In the dock the current tab is the dock's own: the action's colour under it, as on the personal centre's bar */
   .dock-slot .route-tabs .nav-pill {
     top: 0;
     bottom: 0;
+    background: var(--action);
+    box-shadow: 0 6px 16px -8px rgb(12 12 14 / 0.5);
+  }
+
+  .dock-slot .route-tabs a[aria-current="page"] {
+    color: var(--action-ink);
   }
 
   .dock-slot .route-tabs a {
@@ -1317,14 +1423,17 @@ body {
     clip-path: inset(50%);
   }
 
-  .dock[data-compact="true"] .dock-tabs {
+  .dock[data-compact="true"] .dock-tabs::before {
     right: calc(100% - 56px);
+    transition: right 320ms var(--ease-smooth-out) 50ms;
   }
 
   .dock[data-compact="true"] .dock-tab {
     opacity: 0;
-    transform: scale(0.7);
-    transition-delay: 0ms;
+    transform: translateX(-10px) scale(0.92);
+    transition:
+      opacity 90ms var(--ease-out),
+      transform 0s linear 100ms;
   }
 
   /* The bar's last circle: once the bar has folded, the menu button comes up in its place, ready to open out */
@@ -1631,6 +1740,7 @@ body {
   .dock-morph,
   .dock-tab,
   .dock-tabs,
+  .dock-tabs::before,
   .dock-slot,
   .dock-slot *,
   .dock-cases-grid .case-option,
@@ -1661,6 +1771,7 @@ body {
 :root[data-motion="reduce"] .dock-morph,
 :root[data-motion="reduce"] .dock-tab,
 :root[data-motion="reduce"] .dock-tabs,
+:root[data-motion="reduce"] .dock-tabs::before,
 :root[data-motion="reduce"] .dock-slot,
 :root[data-motion="reduce"] .dock-slot *,
 :root[data-motion="reduce"] .dock-cases-grid .case-option,

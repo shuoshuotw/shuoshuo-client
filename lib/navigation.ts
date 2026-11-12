@@ -3,10 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { prefersReduced } from "@/motion/log";
-import { quoteTextOf } from "@/motion/quote-morph";
-
-// The new page has this long to arrive before the picture of the old one lets go
-const WAIT_MS = 1500;
+import { quoteTextOf, WAIT_MS } from "@/motion/quote-morph";
 
 // Whether this tab has moved between the site's own pages since it loaded, so a step back stays on the site
 let moved = false;

@@ -27,7 +27,7 @@ export function MyReactions({ kind, titled = true }: { kind: "favorite" | "like"
   const copy = COPY[kind];
   const { items, status, hasMore, loadMore, reload } = usePagedList<Item>(copy.path);
   const list = useRowsEnter(status === "loading" ? 0 : items.length);
-  useListReactions(items.flatMap((item) => (item.quote ? [item.quote] : [])));
+  useListReactions(items.flatMap((item) => (item.quote ? [item.quote] : [])), kind === "like" ? { liked: true } : { favorited: true });
 
   return (
     <>

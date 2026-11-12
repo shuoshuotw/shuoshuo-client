@@ -1,13 +1,9 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMotionReduced } from "@/lib/motion-pref";
 import { prefersReduced } from "@/motion/log";
-
-// The shader arrives after the page; until then, and where WebGL2 is missing, the ground colour shows through
-const MeshGradient = dynamic(() => import("@paper-design/shaders-react").then((module) => module.MeshGradient), { ssr: false });
 
 const REACH = 44;
 const PULL = 0.4;
@@ -32,11 +28,57 @@ const kindOf = (target: Element | null): Kind => {
   return "on";
 };
 
+// One period of a field, in canvas pixels; a field holds two side by side, so sliding one period along loops without a seam
+const TILE = 320;
+const TALL = 340;
+
 /**
- * The site's light, under every page. Behind everything a mesh gradient of warm paper and brand red flows slowly, its shapes
- * warped by noise so no circle ever shows, under a fixed grain. The mouse carries a small round light and a dot stands
- * in for the system cursor; near a control the control pulls toward the pointer and the light sinks into it. Touch and
- * reduced motion keep the gradient (standing still for reduced motion) without the light.
+ * A field of colour: soft pools of the theme's five hues, each pulled out along the current, the same every visit
+ * (seeded). It is painted here once, small, and stretched over the screen: a gradient this soft loses nothing to that,
+ * and the picture a phone moves is a few hundred pixels wide.
+ */
+function paintField(canvas: HTMLCanvasElement, hues: string[], strength: number, seed: number) {
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  canvas.width = TILE * 2;
+  canvas.height = TALL;
+  let state = seed;
+  const random = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let mixed = Math.imul(state ^ (state >>> 15), 1 | state);
+    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
+  };
+  const pools = 9;
+  for (let index = 0; index < pools; index += 1) {
+    const x = ((index + random() * 0.8) / pools) * TILE;
+    const y = TALL * (0.24 + random() * 0.52);
+    const long = TILE * (0.2 + random() * 0.15);
+    const flat = 0.3 + random() * 0.22;
+    const turn = (random() - 0.5) * 0.6;
+    const hue = hues[index % hues.length]!;
+    // Drawn again a period to each side, so what leaves one edge of the period comes in at the other
+    for (const shift of [-TILE, 0, TILE, TILE * 2]) {
+      context.save();
+      context.translate(x + shift, y);
+      context.rotate(turn);
+      context.scale(1, flat);
+      const pool = context.createRadialGradient(0, 0, 0, 0, 0, long);
+      for (const [stop, share] of [[0, 1], [0.3, 0.76], [0.6, 0.32], [0.85, 0.07], [1, 0]] as const) pool.addColorStop(stop, `rgb(${hue} / ${strength * share})`);
+      context.fillStyle = pool;
+      context.fillRect(-long, -long, long * 2, long * 2);
+      context.restore();
+    }
+  }
+}
+
+/**
+ * The site's light, under every page: two fields of colour, the hues the categories are printed in, flowing slowly
+ * across each other at different angles and speeds under a fixed grain, so the colours between them never stop
+ * changing. Each field is a small canvas painted once (paintField) and only ever slid along by CSS (styles/home.css):
+ * nothing is drawn again while it moves, which a shader here did on every frame of every animation above it. The mouse
+ * carries a small round light and a dot stands in for the system cursor; near a control the control pulls toward the
+ * pointer and the light sinks into it.
  */
 export function Atmosphere() {
   // 減少動畫 switched on this device takes the light, the pull and the dot away at once, and gives the cursor back
@@ -46,29 +88,33 @@ export function Atmosphere() {
   // Inserted after load and faded in: painted from the server HTML, the backdrop counted as a layout shift (MO-10).
   // The light and the dot go to the body, so they ride over the header, the cards and the dock alike.
   const [shown, setShown] = useState(false);
-  const [mesh, setMesh] = useState<{ colors: string[]; still: boolean; touch: boolean } | null>(null);
+  useEffect(() => setShown(true), []);
+  const fieldA = useRef<HTMLCanvasElement>(null);
+  const fieldB = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
-    setShown(true);
+    if (!shown) return;
     const root = document.documentElement;
-    // Asked once: every probe opens a WebGL context
-    const webgl = Boolean(document.createElement("canvas").getContext("webgl2"));
-    // The shader takes colours, not variables, so the theme's mesh tokens are read off the root
-    const read = () => {
+    // The canvas takes colours, not variables, so the theme's hues are read off the root
+    const paint = () => {
       const style = getComputedStyle(root);
-      const colors = [1, 2, 3, 4, 5].map((index) => style.getPropertyValue(`--mesh-${index}`).trim());
-      if (webgl) setMesh({ colors, still: prefersReduced(), touch: matchMedia("(pointer: coarse)").matches });
+      const hues = [1, 2, 3, 4, 5].map((index) => style.getPropertyValue(`--flow-${index}`).trim());
+      const strength = Number(style.getPropertyValue("--flow-strength")) || 0.4;
+      if (fieldA.current) paintField(fieldA.current, hues, strength, 7);
+      // The second field meets the first with other hues, so no colour only ever crosses itself
+      if (fieldB.current) paintField(fieldB.current, [hues[3]!, hues[0]!, hues[4]!, hues[1]!, hues[2]!], strength, 23);
     };
-    read();
+    paint();
     // The theme toggle swaps a class on the root. Other classes come and go there too, and each read restyles the page
     let dark = root.classList.contains("dark");
     const watch = new MutationObserver(() => {
       if (root.classList.contains("dark") === dark) return;
       dark = !dark;
-      read();
+      paint();
     });
     watch.observe(root, { attributes: true, attributeFilter: ["class"] });
     return () => watch.disconnect();
-  }, [reduced]);
+  }, [shown]);
 
   // The light and the dot are popovers in the top layer, so they ride over an open dialog too. A dialog that opens
   // later joins the top layer above them, so they are shown again to come back on top of it
@@ -234,21 +280,12 @@ export function Atmosphere() {
     <>
       {shown && (
         <div className="atmosphere" aria-hidden="true">
-          {mesh && (
-            // Rendered at screen resolution at most, capped: a gradient this soft loses nothing to it. A phone draws it
-            // at about one pixel per CSS pixel, a third of the cap, so the GPU it shares with every animation on the
-            // page has the frame to spare
-            <MeshGradient
-              className="atmosphere-mesh"
-              colors={mesh.colors}
-              distortion={0.85}
-              swirl={0.3}
-              grainMixer={0.06}
-              speed={mesh.still ? 0 : 0.32}
-              minPixelRatio={1}
-              maxPixelCount={mesh.touch ? 420_000 : 1_400_000}
-            />
-          )}
+          <span className="flow flow-a">
+            <canvas ref={fieldA} />
+          </span>
+          <span className="flow flow-b">
+            <canvas ref={fieldB} />
+          </span>
           <span className="atmosphere-grain" />
         </div>
       )}

@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, Suspense } from "react";
 import { SubmitInvite } from "@/components/home-sections";
 import { LatestFan } from "@/components/latest-fan";
 import { QuoteStage } from "@/components/quote-stage";
@@ -18,10 +18,18 @@ export default async function HomePage() {
       <main className="home" style={tint}>
         <h1 className="sr-only">說說</h1>
         <QuoteStage initial={quote} />
-        <LatestFan quotes={latest} />
-        <SubmitInvite />
+        {/* Each part below the first screen is its own boundary: React then hydrates the page a part at a time and
+            can stop between them, instead of holding a phone's main thread for the whole page at once */}
+        <Suspense>
+          <LatestFan quotes={latest} />
+        </Suspense>
+        <Suspense>
+          <SubmitInvite />
+        </Suspense>
       </main>
-      <SiteFooter />
+      <Suspense>
+        <SiteFooter />
+      </Suspense>
     </>
   );
 }

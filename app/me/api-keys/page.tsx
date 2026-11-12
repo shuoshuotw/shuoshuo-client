@@ -52,9 +52,21 @@ function ApiKeys() {
   // Keys deleted while their dialog is still open; each leaves the table once the dialog is back in its button
   const deleted = useRef(new Set<string>());
 
+  // A key has just been made and its panel has not been given the focus yet
+  const fresh = useRef(false);
+
   const created = (key: ApiKeyWithSecret) => {
     setItems((current) => [key, ...current.filter((item) => item.id !== key.id)]);
     setRevealed(key);
+    fresh.current = true;
+  };
+
+  // The new key is the one thing on the page that matters now. Its panel takes the focus once the dialog that made it is
+  // back in its button: taken any sooner, the open dialog pulled the focus back and then handed it to the button
+  const focusFresh = () => {
+    if (!fresh.current) return;
+    fresh.current = false;
+    secret.current?.focus();
   };
 
   const needsReauth = (failure: unknown) => {
@@ -104,6 +116,7 @@ function ApiKeys() {
           title="建立 API Key"
           triggerClassName="button button-primary"
           magnet
+          onClosed={focusFresh}
         >
           {(close) => <CreateKeyForm close={close} onCreated={created} onReauth={needsReauth} />}
         </MorphDialog>
@@ -157,7 +170,7 @@ function ApiKeys() {
                   <td data-label="前綴">
                     <code>{key.key_prefix}</code>
                   </td>
-                  <td data-label="權限" className="table-roomy">{key.scopes.map((scope) => API_SCOPES[scope]).join("、")}</td>
+                  <td data-label="權限" className="table-roomy">{key.scopes.map((scope) => API_SCOPES[scope]).filter(Boolean).join("、")}</td>
                   <td data-label="到期" className="table-nowrap">{expiry(key.expires_at)}</td>
                   <td data-label="最後使用">{key.last_used_at ? <DayAndTime at={key.last_used_at} /> : <span className="nowrap">尚未使用</span>}</td>
                   <td data-label="建立於" className="table-nowrap">{formatDate(key.created_at)}</td>
@@ -170,6 +183,7 @@ function ApiKeys() {
                         confirm="重新產生"
                         tone="warning"
                         onConfirm={() => regenerate(key.id)}
+                        onClosed={focusFresh}
                       />
                       <ConfirmButton
                         label="刪除"
@@ -227,9 +241,7 @@ function SecretReveal({ ref: panel, apiKey, onDismiss }: { ref: RefObject<HTMLEl
   const [copied, setCopied] = useState(false);
   const [phase, setPhase] = useState<SendPhase>("sending");
 
-  // The one thing on the page that matters now, and the dialog that opened it has just closed
   useEffect(() => {
-    panel.current?.focus();
     setPhase("sending");
     const timer = setTimeout(() => setPhase("done"), prefersReduced() ? 0 : 650);
     return () => clearTimeout(timer);

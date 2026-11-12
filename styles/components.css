@@ -1399,10 +1399,11 @@ textarea.comment-input {
 
 /* ---------- test page ---------- */
 
+/* Test builds only (/dev/*). Below the floating header, which otherwise lies over the form and takes its clicks */
 .dev-page {
   display: grid;
   gap: var(--space-5);
-  padding: var(--space-6) var(--frame);
+  padding: calc(var(--header-space) + var(--space-6)) var(--frame) var(--space-6);
 }
 
 .dev-page h2 {

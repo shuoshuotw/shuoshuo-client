@@ -105,13 +105,17 @@
   --font-sans: "NotoSansTC", "PingFang TC", "Microsoft JhengHei", sans-serif;
   --font-quote: "ChenYuLuoYan", var(--font-sans);
   --font-code: ui-monospace, "Cascadia Code", Consolas, monospace; /* taste-skill-ignore: only <pre> and <code> use it */
-  /* The moving mesh gradient under every page (Atmosphere reads these). Five hues kept at one lightness per theme,
-     so the gradient shifts in colour and never in dark blotches: mint, sky, blush, sand, lilac */
-  --mesh-1: #dcefe5;
-  --mesh-2: #dce8f5;
-  --mesh-3: #f5dfdd;
-  --mesh-4: #f2e7d4;
-  --mesh-5: #e6e0f2;
+  /* The backdrop under every page (Atmosphere): the hues its two fields of colour flow through, as channels for the
+     canvas, and how strongly they are laid on the ground. The categories' own colours, a little deeper so they hold on
+     the paper: blush, amber, sky, jade, lilac */
+  --flow-1: 240 138 128;
+  --flow-2: 240 182 84;
+  --flow-3: 112 180 236;
+  --flow-4: 92 198 176;
+  --flow-5: 178 156 232;
+  --flow-strength: 0.5;
+  /* The backdrop taken as one colour, for whatever fades into it at the page's edges (.app-scroll) */
+  --veil: color-mix(in oklab, rgb(var(--flow-3)) 14%, var(--ground));
   /* The cursor's light moves through the same hues */
   --spot-1: #7fc8a9;
   --spot-2: #7fb2e6;
@@ -158,11 +162,14 @@
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.7);
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 24px 48px -16px rgb(0 0 0 / 0.85);
   --glow-strength: 0.3;
-  --mesh-1: #22393b;
-  --mesh-2: #243150;
-  --mesh-3: #3e2a3c;
-  --mesh-4: #3d3222;
-  --mesh-5: #2b3c2d;
+  /* By night the same hues burn low: ember, amber, deep blue, sea green, plum */
+  --flow-1: 214 70 56;
+  --flow-2: 196 126 40;
+  --flow-3: 48 96 214;
+  --flow-4: 26 146 136;
+  --flow-5: 124 66 160;
+  --flow-strength: 0.56;
+  --veil: color-mix(in oklab, rgb(var(--flow-3)) 9%, var(--ground));
   --spot-1: #6fd3b0;
   --spot-2: #7ab4ff;
   --spot-3: #ff9aa8;

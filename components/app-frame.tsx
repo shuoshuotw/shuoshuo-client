@@ -7,7 +7,7 @@ import { useMotionReduced } from "@/lib/motion-pref";
 import { useNavigationMemory } from "@/lib/navigation";
 import { installPressSpring } from "@/motion/press";
 import { installProfileMorph } from "@/motion/profile-morph";
-import { installQuoteMorph } from "@/motion/quote-morph";
+import { installQuoteMorph, installWarmUp } from "@/motion/quote-morph";
 import { installCardTilt } from "@/motion/tilt";
 import { Atmosphere } from "./atmosphere";
 import { MobileDock } from "./mobile-dock";
@@ -26,6 +26,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const router = useRouter();
   useEffect(() => installQuoteMorph(router.push), [router]);
   useEffect(() => installProfileMorph(router.push), [router]);
+  useEffect(() => installWarmUp(router.prefetch), [router]);
   return (
     <>
       <Atmosphere />

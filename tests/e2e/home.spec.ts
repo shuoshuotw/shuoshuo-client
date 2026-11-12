@@ -244,7 +244,8 @@ test.describe("the stage", () => {
     });
     await expect(dock).toHaveAttribute("data-compact", "true");
     await expect(dock.locator(".dock-tab").first()).toHaveCSS("opacity", "0");
-    await expect(dock.locator(".dock-tabs")).toHaveJSProperty("offsetWidth", 56);
+    // The bar keeps its box, so its tabs are never laid out again; its face closes up to the menu button's circle
+    await expect.poll(() => dock.locator(".dock-tabs").evaluate((bar) => Math.round(Number.parseFloat(getComputedStyle(bar, "::before").width)))).toBe(56);
 
     // The button grows into the menu (a disclosure), and folds back on Escape or once a page is chosen
     const morph = dock.locator(".dock-morph");

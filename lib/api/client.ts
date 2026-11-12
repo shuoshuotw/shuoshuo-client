@@ -10,6 +10,7 @@ export type ApiKey = Schemas["ApiKey"];
 export type ApiKeyWithSecret = Schemas["ApiKeyWithSecret"];
 export type ApiKeyScope = Schemas["ApiKeyScope"];
 export type ReportReason = Schemas["ReportReason"];
+export type ReportReasonInput = Schemas["ReportReasonInput"];
 export type FavoriteItem = Schemas["FavoriteItem"];
 export type LikeItem = Schemas["LikeItem"];
 export type Standing = Schemas["Standing"];

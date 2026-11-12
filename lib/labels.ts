@@ -1,25 +1,48 @@
-import type { ApiKeyScope, Appeal, ReportReason, Sanction, Standing } from "@/lib/api/client";
+import type { ApiKeyScope, Appeal, ReportReason, ReportReasonInput, Sanction, Standing } from "@/lib/api/client";
 import { formatTime } from "./format";
 
+/** What a removal or a case was decided as: the name of the category, as a moderator and the person removed read it. */
 export const REPORT_REASONS: Record<ReportReason, string> = {
-  harassment: "騷擾或霸凌",
-  hate: "仇恨言論",
-  sexual: "色情內容",
-  violence: "暴力內容",
-  privacy: "侵犯隱私",
+  harassment: "騷擾、霸凌或虐待",
+  hate: "仇恨或過激言論",
+  self_harm: "自傷或自殘",
+  violence: "暴力、冒犯性或惡意內容",
   spam: "垃圾內容",
-  misinformation: "不實資訊",
+  misinformation: "詐欺或不實內容",
+  sexual: "色情內容",
+  privacy: "侵害隱私",
+  intellectual_property: "侵害智慧財產權、著作權",
   simplified_chinese: "使用簡體中文",
+  security_risk: "安全風險",
   other: "其他",
 };
 
+/**
+ * The same reasons as the person reporting is asked them, in the order they are offered. 我就是不喜歡 is answered like
+ * the rest and never becomes a report (Core, §9.2); 其他 is no longer offered.
+ */
+export const REPORT_CHOICES: [ReportReasonInput, string][] = [
+  ["harassment", "騷擾、霸凌或虐待"],
+  ["hate", "仇恨或過激言論"],
+  ["self_harm", "自傷或自殘"],
+  ["violence", "暴力、冒犯性或惡意內容"],
+  ["spam", "垃圾內容"],
+  ["misinformation", "詐欺或不實內容"],
+  ["sexual", "色情內容"],
+  ["privacy", "侵害了我或者其他人的隱私"],
+  ["intellectual_property", "侵害了我或者其他人（組織）的智慧財產權、著作權"],
+  ["simplified_chinese", "使用了簡體中文"],
+  ["security_risk", "使平台或使用者帶來安全風險"],
+  ["dislike", "我就是不喜歡"],
+];
+
 export const reasonLabel = (reason: string | null | undefined) => (reason ? (REPORT_REASONS[reason as ReportReason] ?? reason) : "違反內容規範");
 
+/** A key reads and submits. Editing, deleting and commenting take the person signed in (Core, §7.5). */
 export const API_SCOPES: Record<ApiKeyScope, string> = {
-  "quotes:read": "讀取說說",
-  "quotes:write": "提交與編輯說說",
+  "quotes:read": "讀取說說與留言",
+  "quotes:write": "提交說說",
   "reactions:write": "按讚與收藏",
-  "comments:write": "留言",
   "me:read": "讀取我的資料",
 };
 

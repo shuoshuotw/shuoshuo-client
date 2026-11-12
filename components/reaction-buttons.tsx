@@ -33,12 +33,16 @@ export function useQuoteReactions(quote: Quote | null) {
 // The quotes whose own state this page has already asked for
 const asked = new Set<string>();
 
-/** The same for a page of quotes, with the reader's own states asked for in one request per page loaded. */
-export function useListReactions(quotes: Pick<Quote, "id" | "stats">[]) {
+/**
+ * The same for a page of quotes, with the reader's own states asked for in one request per page loaded. `own` is what the
+ * list itself already says of every quote in it (the reader's favourites are all favourited): without it a tap made
+ * before the states arrived counted from "not yet", and asked for the favourite again instead of taking it back.
+ */
+export function useListReactions(quotes: Pick<Quote, "id" | "stats">[], own?: { liked?: boolean; favorited?: boolean }) {
   const ids = quotes.map(({ id }) => id).join(",");
   useEffect(() => {
     const { seed, merge } = useReactionStore.getState();
-    for (const { id, stats } of quotes) seed(id, { like_count: stats.like_count, favorite_count: stats.favorite_count });
+    for (const { id, stats } of quotes) seed(id, { like_count: stats.like_count, favorite_count: stats.favorite_count, ...own });
     const unknown = quotes.map(({ id }) => id).filter((id) => !asked.has(id));
     if (!hasSessionCookie() || unknown.length === 0) return;
     for (const id of unknown) asked.add(id);

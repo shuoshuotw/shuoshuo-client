@@ -960,6 +960,21 @@ select.input {
   height: 13px;
 }
 
+/* Just pinned: the badge eases in while the row slides to the top (transitions-dev badge) */
+.comment-pin[data-enter] {
+  animation: chip-in var(--duration-very-slow) var(--ease-bounce) 120ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comment-pin[data-enter] {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .comment-pin[data-enter] {
+  animation: none;
+}
+
 .comment-text {
   margin-top: 2px;
   white-space: pre-wrap;
@@ -1792,6 +1807,7 @@ select.input {
 /* A new picture comes into focus where the old one was (AvatarPicker) */
 .avatar-pop {
   display: inline-grid;
+  flex: none;
 }
 
 .avatar-pop[data-changed] {

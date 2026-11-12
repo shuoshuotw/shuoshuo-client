@@ -66,9 +66,11 @@
   animation: reveal-in var(--duration-slow) var(--ease-in-out) both;
 }
 
-/* The stage keeps everything in its middle through a reveal as well */
+/* The stage keeps everything in its middle through a reveal as well. Each layer is a grid: a block box only centres its
+   children this way in the newest engines, and Safari before 26.2 left the sentence at the left edge */
 .stage-body > .reveal,
 .stage-body .reveal > * {
+  display: grid;
   place-items: center;
   width: 100%;
 }
@@ -339,6 +341,9 @@
 
 /* ---------- atmosphere: window light, the cursor's light and the magnets ---------- */
 
+/* Two fields of colour that flow across each other (Atmosphere paints them). Each is a small picture stretched over
+   the screen and slid one period along its own slant for ever, while the field itself sways slowly across the flow, so
+   the two never line up the same way twice in a row. Only transforms move: nothing is rastered again, on any device */
 .atmosphere {
   position: fixed;
   inset: 0;
@@ -346,6 +351,7 @@
   overflow: hidden;
   contain: strict;
   pointer-events: none;
+  background: var(--ground);
   animation: backdrop-in 1.6s var(--ease-in-out) both;
 }
 
@@ -355,10 +361,55 @@
   }
 }
 
-/* The shader's canvas fills the backdrop; it draws its own motion, so nothing here animates */
-.atmosphere-mesh {
+/* Turned about the middle of the screen */
+.flow {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+}
+
+.flow-a {
+  rotate: -16deg;
+  animation: flow-sway 37s var(--ease-in-out) infinite alternate;
+}
+
+.flow-b {
+  rotate: 24deg;
+  animation: flow-sway 53s var(--ease-in-out) infinite alternate-reverse;
+}
+
+/* Two periods wide (160vmax each), and reaching 80vmax to every side of the middle wherever it has slid to: further
+   than any screen's corner */
+.flow canvas {
+  position: absolute;
+  top: -85vmax;
+  left: -80vmax;
+  width: 320vmax;
+  height: 170vmax;
+  will-change: transform;
+  animation: flow-run 84s linear infinite;
+}
+
+.flow-b canvas {
+  animation-duration: 124s;
+  animation-direction: reverse;
+}
+
+@keyframes flow-run {
+  to {
+    transform: translate3d(-160vmax, 0, 0);
+  }
+}
+
+@keyframes flow-sway {
+  from {
+    translate: 0 -5vmax;
+  }
+  to {
+    translate: 0 5vmax;
+  }
 }
 
 /* A fixed grain over the gradient: it reads as printed rather than rendered, and stops the gradient from banding. A
@@ -1122,6 +1173,8 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
   }
 
   .atmosphere,
+  .flow,
+  .flow canvas,
   .toolbar-draw::before,
   .draw-wrap::before,
   .draw-sheen {
@@ -1154,6 +1207,8 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
 }
 
 :root[data-motion="reduce"] .atmosphere,
+:root[data-motion="reduce"] .flow,
+:root[data-motion="reduce"] .flow canvas,
 :root[data-motion="reduce"] .toolbar-draw::before,
 :root[data-motion="reduce"] .draw-wrap::before,
 :root[data-motion="reduce"] .draw-sheen {

@@ -1,7 +1,33 @@
 import { prefersReduced } from "./log";
 
-// The new page has this long to arrive before the picture of the old one lets go
-const WAIT_MS = 1500;
+// The new page has this long to arrive before the picture of the old one lets go. The screen stands still meanwhile,
+// so it is kept short: a page that takes longer simply arrives without the sentence travelling
+export const WAIT_MS = 700;
+
+/**
+ * What was tapped gives at once (styles: [data-pressing]), before the picture of the old page is taken: the screen
+ * stands still from then until the new page is ready, and a press that showed nothing read as a tap that had missed.
+ * Returns the way to let go.
+ */
+export function press(target: HTMLElement | null) {
+  if (!target) return () => {};
+  target.dataset.pressing = "true";
+  return () => delete target.dataset.pressing;
+}
+
+/**
+ * The pages these links open are fetched from the press itself, not from the click that follows it: a finger takes a
+ * tenth of a second between the two, a mouse longer, and the wait under the transition is shorter by that much.
+ */
+export function installWarmUp(prefetch: (href: string) => void) {
+  const down = (event: PointerEvent) => {
+    const link = (event.target as Element).closest?.<HTMLAnchorElement>("a[data-quote-id], a[data-profile]");
+    const href = link?.getAttribute("href");
+    if (href) prefetch(href);
+  };
+  document.addEventListener("pointerdown", down, { capture: true, passive: true });
+  return () => document.removeEventListener("pointerdown", down, true);
+}
 
 /** The sentence a quote link stands for: the link itself, or the sentence on the card it sits on. */
 export function quoteTextOf(link: HTMLElement) {
@@ -26,8 +52,9 @@ export function installQuoteMorph(push: (href: string) => void) {
     if (!text) return;
     event.preventDefault();
     if (!prefersReduced()) text.style.viewTransitionName = "quote-text";
+    const release = press(link.closest<HTMLElement>(".quote-row-item, .fan-card") ?? link);
 
-    document.startViewTransition(
+    const transition = document.startViewTransition(
       () =>
         new Promise<void>((resolve) => {
           // The old picture is taken; the name goes to the new page's sentence
@@ -42,6 +69,7 @@ export function installQuoteMorph(push: (href: string) => void) {
           arrived();
         }),
     );
+    void transition.finished.finally(release);
   };
 
   // Before Next's Link sees the click: a prevented click is one it leaves alone

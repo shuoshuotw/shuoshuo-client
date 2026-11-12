@@ -1,7 +1,5 @@
 import { prefersReduced } from "./log";
-
-// The new page has this long to arrive before the picture of the old one lets go
-const WAIT_MS = 1500;
+import { press, WAIT_MS } from "./quote-morph";
 
 /**
  * A submitter's name on a card (or anywhere a quote is credited) opens their profile as one shared-element view
@@ -21,10 +19,12 @@ export function installProfileMorph(push: (href: string) => void) {
     const here = decodeURIComponent(location.pathname);
     if (here === base || here.startsWith(`${base}/`)) return;
     const travel = !prefersReduced();
-    const avatar = travel ? (link.closest(".credit")?.querySelector<HTMLElement>(".avatar") ?? null) : null;
+    // The picture beside the name: on a card's credit line, or at the head of a comment
+    const avatar = travel ? (link.closest(".credit, .comment")?.querySelector<HTMLElement>(".avatar") ?? null) : null;
     event.preventDefault();
     if (travel) link.style.viewTransitionName = "profile-name";
     if (avatar) avatar.style.viewTransitionName = "profile-avatar";
+    const release = press(link);
 
     const landed: HTMLElement[] = [];
     const transition = document.startViewTransition(
@@ -57,6 +57,7 @@ export function installProfileMorph(push: (href: string) => void) {
         }),
     );
     void transition.finished.finally(() => {
+      release();
       link.style.removeProperty("view-transition-name");
       for (const part of landed) part.style.removeProperty("view-transition-name");
     });

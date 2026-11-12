@@ -2,13 +2,12 @@ import { CalendarClock, FileText } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHead, PageShell } from "@/components/site-chrome";
+import { DOCS_URL } from "@/lib/docs";
 
 export const metadata: Metadata = { title: "說說 · 服務條款" };
 
 // Without revalidate the page is cached for a year, and the CDN would keep outdated terms (M0 #7)
 export const revalidate = 3600;
-
-const DOCS_URL = "https://docs.shuoshuotw.xyz";
 
 export default function TermsPage() {
   return (
@@ -49,7 +48,7 @@ export default function TermsPage() {
           <li>公開他人的個人資料。</li>
           <li>垃圾內容與廣告。</li>
           <li>不實資訊，例如捏造的出處。</li>
-          <li>非繁體中文的內容。</li>
+          <li>以簡體中文書寫的內容。</li>
           <li>攻擊或干擾本服務，例如繞過頻率限制、大量自動提交，或嘗試存取他人的帳號。</li>
         </ul>
 

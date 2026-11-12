@@ -1,9 +1,10 @@
 import type { Page } from "@playwright/test";
-import { CORE, coreCall, coreToken, expect, newUser, signIn, test } from "./helpers";
+import { CORE, coreCall, coreToken, expect, landed, newUser, signIn, test } from "./helpers";
 
 async function createKey(page: Page, name: string) {
   await page.getByRole("button", { name: "建立 API Key" }).click();
   const dialog = page.getByRole("dialog", { name: "建立 API Key" });
+  await landed(dialog);
   await dialog.getByLabel("名稱").fill(name);
   await dialog.getByRole("button", { name: "建立", exact: true }).click();
   const secret = page.getByTestId("api-key-secret");
@@ -19,7 +20,8 @@ test("E2E-05: a key shows once, works, and stops working when deleted", async ({
   await expect(page.getByText("還沒有 API Key")).toBeVisible();
 
   const secret = await createKey(page, "我的部落格");
-  await expect(page.getByRole("img", { name: "完成" })).toBeVisible();
+  // M-08: the panel's disc spins, then turns into its tick
+  await expect(page.locator(".secret")).toHaveAttribute("data-phase", "done");
   await page.getByRole("button", { name: "複製金鑰" }).click();
   await expect(page.getByRole("button", { name: "已複製" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(secret);
@@ -69,6 +71,7 @@ test("E2E-07: the 11th key is refused with the reason", async ({ page }) => {
   await expect(page.getByRole("row")).toHaveCount(11);
   await page.getByRole("button", { name: "建立 API Key" }).click();
   const dialog = page.getByRole("dialog", { name: "建立 API Key" });
+  await landed(dialog);
   await dialog.getByLabel("名稱").fill("第十一組");
   await dialog.getByRole("button", { name: "建立", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("上限");
@@ -88,9 +91,11 @@ test("REAUTH_REQUIRED sends the person to verify again", async ({ page }) => {
   );
   await page.getByRole("button", { name: "建立 API Key" }).click();
   const dialog = page.getByRole("dialog", { name: "建立 API Key" });
+  await landed(dialog);
   await dialog.getByLabel("名稱").fill("要重新驗證");
   await dialog.getByRole("button", { name: "建立", exact: true }).click();
-  await page.getByRole("link", { name: "重新驗證" }).click();
+  // The dialog closes and a toast offers the way to verify
+  await page.getByRole("link", { name: "驗證", exact: true }).click();
   await page.waitForURL(/\/login\?reauth=1/);
   await expect(page.getByRole("heading", { level: 1, name: "重新驗證身分" })).toBeVisible();
 });
