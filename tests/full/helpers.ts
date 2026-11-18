@@ -21,10 +21,15 @@ const adminHeaders = { apikey: SECRET, Authorization: `Bearer ${SECRET}`, "Conte
 
 const randomIp = () => `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
 
-/** Each test gets its own address, so a whole run from one machine does not spend one address's AUTH-GUARD quota (§10.4). */
+/**
+ * Each test gets its own address, so a whole run from one machine does not spend one address's AUTH-GUARD quota (§10.4).
+ * Every context goes through here, so it also keeps the web font service out: its files took 20 seconds and more to
+ * arrive, each page's load waited for them, and steps ran out of time at random. Nothing here looks at the type.
+ */
 export async function distinctCaller(context: BrowserContext) {
   const ip = randomIp();
   await context.route(`${CORE}/**`, (route) => route.continue({ headers: { ...route.request().headers(), "cf-connecting-ip": ip } }));
+  await context.route("https://font.emtech.cc/**", (route) => route.abort());
 }
 
 export const test = base.extend({
@@ -109,15 +114,21 @@ export async function choose(scope: Page | Locator, label: string, option: strin
   const page = "page" in scope ? scope.page() : scope;
   const field = scope.locator(".field").filter({ has: page.locator(".choice-label", { hasText: new RegExp(`^${label}$`) }) });
   const list = page.getByRole("listbox");
+  const trigger = field.locator(".choice-trigger");
+  // In view, and that scroll over, before the press. A scroll under an open list closes it (React Aria), and the
+  // headless shell CI runs in told the page of the scroll a click makes to reach its button only once the list was
+  // open, so the list closed under the pointer every time
+  await trigger.scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))));
   // A press as long as a person's: the list opens as the mouse lets go, and a press of no length at all can miss it
   await expect(async () => {
-    await field.locator(".choice-trigger").click({ delay: 70 });
+    await trigger.click({ delay: 70 });
     await expect(list).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 15_000 });
   await page.getByRole("option", { name: option, exact: true }).click({ delay: 70 });
   // The list folds back onto its button before the next step can reach what was under it
   await expect(list).toHaveCount(0);
-  await expect(field.locator(".choice-trigger")).toContainText(option);
+  await expect(trigger).toContainText(option);
 }
 
 /**

@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { coreCall, coreToken, distinctCaller, expect, landed, newUser, reactionSent, signIn, signOut, sourceField, submitQuote, test, uniqueQuote } from "./helpers";
+import { choose, coreCall, coreToken, distinctCaller, expect, landed, newUser, reactionSent, signIn, signOut, sourceField, submitQuote, test, uniqueQuote } from "./helpers";
 
 test("E2E-02: sign in, submit, the tick, the home page, then my submissions", async ({ page }) => {
   const user = await newUser();
@@ -179,8 +179,7 @@ test("E2E-13: a closed list says so on the public page and the API refuses it", 
   const owner = await newUser();
   const other = await newUser();
   await signIn(page, owner);
-  await page.getByRole("button", { name: /我的收藏/ }).click();
-  await page.getByRole("option", { name: "私人" }).click();
+  await choose(page, "我的收藏", "私人");
   await expect(page.getByText("設定已更新")).toBeVisible();
 
   const { status, body } = await coreCall(`/v1/users/${encodeURIComponent(owner.username)}/favorites`, { token: await coreToken(other) });
