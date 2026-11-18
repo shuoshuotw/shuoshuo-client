@@ -251,7 +251,9 @@ export function LatestFan({ quotes }: { quotes: Quote[] }) {
       <div
         ref={fan}
         className="fan"
-        data-open={open}
+        // Not data-open: the dock's menu has rules on that name, and a change to it anywhere restyled every element of
+        // every card as the hand opened, a long frame on a phone just as it began to spread
+        data-spread={open}
         onPointerDown={press}
         onPointerMove={follow}
         onPointerUp={release}

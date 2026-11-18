@@ -1,5 +1,5 @@
 import { prefersReduced } from "./log";
-import { press, WAIT_MS } from "./quote-morph";
+import { afterPaint, beginMorph, claim, press, ready } from "./quote-morph";
 
 /**
  * A submitter's name on a card (or anywhere a quote is credited) opens their profile as one shared-element view
@@ -22,45 +22,42 @@ export function installProfileMorph(push: (href: string) => void) {
     // The picture beside the name: on a card's credit line, or at the head of a comment
     const avatar = travel ? (link.closest(".credit, .comment")?.querySelector<HTMLElement>(".avatar") ?? null) : null;
     event.preventDefault();
+    const release = press(link);
+    // Named at the tap, so a phone has painted them apart before their pictures are taken (quote-morph.ts)
     if (travel) link.style.viewTransitionName = "profile-name";
     if (avatar) avatar.style.viewTransitionName = "profile-avatar";
-    const release = press(link);
-
-    const landed: HTMLElement[] = [];
-    const transition = document.startViewTransition(
-      () =>
-        new Promise<void>((resolve) => {
-          // The old picture is taken; the names go to the profile's head once it is there
-          link.style.viewTransitionName = "";
-          avatar?.style.removeProperty("view-transition-name");
-          push(href);
-          const start = performance.now();
-          // Rendering is held during the transition, so no animation frame comes to poll with
-          const arrived = () => {
-            const name = document.querySelector<HTMLElement>(".profile-head .profile-name");
-            if (name?.textContent === link.textContent) {
-              const picture = document.querySelector<HTMLElement>(".profile-head .avatar");
-              if (travel) {
-                name.style.viewTransitionName = "profile-name";
-                landed.push(name);
-              }
-              if (picture && avatar) {
-                picture.style.viewTransitionName = "profile-avatar";
-                landed.push(picture);
-              }
-              document.getElementById("app-scroll")?.scrollTo({ top: 0 });
-              resolve();
-            } else if (performance.now() - start > WAIT_MS) resolve();
-            else setTimeout(arrived, 16);
-          };
-          arrived();
-        }),
-    );
-    void transition.finished.finally(() => {
+    const current = claim(() => {
+      link.style.removeProperty("view-transition-name");
+      avatar?.style.removeProperty("view-transition-name");
+    });
+    // The profile is made first, then the press is drawn before the page is captured (quote-morph.ts)
+    void ready(href).then(() => {
+      if (!current()) return release();
+      afterPaint(() => beginMorph({ land, done }, () => push(href)));
+    });
+    const land = () => {
+      // The old pictures are taken; the names go to the profile's head
+      link.style.removeProperty("view-transition-name");
+      avatar?.style.removeProperty("view-transition-name");
+      const landed: HTMLElement[] = [];
+      const name = document.querySelector<HTMLElement>(".profile-head .profile-name");
+      const picture = document.querySelector<HTMLElement>(".profile-head .avatar");
+      if (travel && name?.textContent === link.textContent) {
+        name.style.viewTransitionName = "profile-name";
+        landed.push(name);
+      }
+      if (picture && avatar) {
+        picture.style.viewTransitionName = "profile-avatar";
+        landed.push(picture);
+      }
+      document.getElementById("app-scroll")?.scrollTo({ top: 0 });
+      return landed;
+    };
+    const done = () => {
       release();
       link.style.removeProperty("view-transition-name");
-      for (const part of landed) part.style.removeProperty("view-transition-name");
-    });
+      avatar?.style.removeProperty("view-transition-name");
+    };
   };
 
   // Before Next's Link sees the click: a prevented click is one it leaves alone

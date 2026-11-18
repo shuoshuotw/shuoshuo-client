@@ -11,6 +11,7 @@ import { installQuoteMorph, installWarmUp } from "@/motion/quote-morph";
 import { installCardTilt } from "@/motion/tilt";
 import { Atmosphere } from "./atmosphere";
 import { MobileDock } from "./mobile-dock";
+import { MorphMark } from "./morph-mark";
 import { SiteHeader } from "./site-header";
 
 /**
@@ -26,7 +27,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const router = useRouter();
   useEffect(() => installQuoteMorph(router.push), [router]);
   useEffect(() => installProfileMorph(router.push), [router]);
-  useEffect(() => installWarmUp(router.prefetch), [router]);
+  // The whole page, not only its shell: with the shell alone the page itself was still fetched once a view transition
+  // had frozen the screen. (Next types the kind as an enum it does not export; its value is the string its docs give.)
+  useEffect(() => installWarmUp((href) => router.prefetch(href, { kind: "full" } as unknown as Parameters<typeof router.prefetch>[1])), [router]);
   return (
     <>
       <Atmosphere />
@@ -45,6 +48,7 @@ function Frame({ children }: { children: ReactNode }) {
         {children}
       </ScrollShadow>
       <MobileDock />
+      <MorphMark />
     </>
   );
 }

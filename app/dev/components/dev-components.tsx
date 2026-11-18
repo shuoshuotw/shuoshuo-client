@@ -31,7 +31,7 @@ export function DevComponents() {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (list.current) void staggerRows([...list.current.children]);
+    if (list.current) staggerRows([...list.current.children]);
   }, []);
 
   return (

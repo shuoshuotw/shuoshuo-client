@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, KeyRound, Plus } from "lucide-react";
+import { ArrowRight, Check, Copy, KeyRound, Plus, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type RefObject, useEffect, useRef, useState } from "react";
@@ -8,13 +8,16 @@ import { flushSync } from "react-dom";
 import { BarredNote } from "@/components/barred-note";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ChoiceField, Field, FormError, useFormErrors } from "@/components/form";
+import { LinkButton } from "@/components/link-button";
 import { MeGate } from "@/components/me-gate";
 import { MorphDialog } from "@/components/morph-dialog";
+import { Notice } from "@/components/notice";
 import { PageHead } from "@/components/site-chrome";
-import { RetryNote, StateNote } from "@/components/state-note";
+import { RetryNote } from "@/components/retry-note";
+import { StateNote } from "@/components/state-note";
 import { type SendPhase, SendStatus } from "@/components/send-status";
 import { api } from "@/lib/api/browser";
-import { type ApiKey, type ApiKeyScope, type ApiKeyWithSecret, ApiFailure } from "@/lib/api/client";
+import { type ApiKey, type ApiKeyScope, type ApiKeyWithSecret, ApiFailure, type Standing } from "@/lib/api/client";
 import { countChars, formatDate, formatTime } from "@/lib/format";
 import { API_SCOPES } from "@/lib/labels";
 import { askToReauth, notify } from "@/lib/toast";
@@ -36,14 +39,14 @@ export default function ApiKeysPage() {
             <BarredNote standing={me.standing} />
           </>
         ) : (
-          <ApiKeys />
+          <ApiKeys standing={me.standing} />
         )
       }
     </MeGate>
   );
 }
 
-function ApiKeys() {
+function ApiKeys({ standing }: { standing: Standing }) {
   const { items, setItems, status, reload } = usePagedList<ApiKey>("/v1/me/api-keys");
   const pathname = usePathname();
   const [revealed, setRevealed] = useState<ApiKeyWithSecret | null>(null);
@@ -121,6 +124,20 @@ function ApiKeys() {
           {(close) => <CreateKeyForm close={close} onCreated={created} onReauth={needsReauth} />}
         </MorphDialog>
       </div>
+      {/* A suspension holds back what the account's keys may submit too (Core, D-12), so the page says so like 我的帳號 */}
+      {standing.status === "suspended" && (
+        <Notice
+          icon={TriangleAlert}
+          title="你的 API Key 提交權限已被暫停"
+          action={
+            <LinkButton href="/me/standing" radius="full" variant="bordered" data-magnet endContent={<ArrowRight aria-hidden="true" size={18} />}>
+              查看原因與申訴
+            </LinkButton>
+          }
+        >
+          在受處分的期間，你的 API Key 提交權限也會受到限制。
+        </Notice>
+      )}
       {revealed && <SecretReveal ref={secret} apiKey={revealed} onDismiss={hideSecret} />}
       {status === "loading" ? (
         <div className="table-scroll" aria-busy="true">
@@ -206,13 +223,16 @@ function ApiKeys() {
   );
 }
 
-/** A moment as its day and its time, which may go on two lines but never break inside either. */
+/**
+ * A moment as its day and its time, which may go on two lines but never break inside either. One element: as two, a
+ * phone's card (a grid of label and value) put the time on a row of its own under the labels.
+ */
 function DayAndTime({ at }: { at: string }) {
   const [day, ...time] = formatTime(at).split(" ");
   return (
-    <>
+    <span>
       <span className="nowrap">{day}</span> <span className="nowrap">{time.join(" ")}</span>
-    </>
+    </span>
   );
 }
 

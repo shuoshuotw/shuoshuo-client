@@ -15,7 +15,8 @@ const csp = [
   "font-src https://font.emtech.cc",
   "img-src 'self' data: https://*.googleusercontent.com https://cdn.discordapp.com https://avatars.githubusercontent.com",
   // Realtime's socket is named on its own: Safari does not let an https source stand for wss, and a blocked socket throws there
-  `connect-src 'self' ${process.env.NEXT_PUBLIC_API_BASE_URL ?? ""} ${supabaseUrl} ${supabaseUrl.replace(/^http/, "ws")} https://cloudflareinsights.com`,
+  // Core's address with the same fallback as lib/api/client.ts: a build without the variable talks to localhost:5001
+  `connect-src 'self' ${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5001"} ${supabaseUrl} ${supabaseUrl.replace(/^http/, "ws")} https://cloudflareinsights.com`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -234,8 +234,10 @@
   justify-self: start;
 }
 
+/* One column as wide as the field and no wider: an implicit column grew with a long value in a select, out of its dialog */
 .field {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
   min-width: 0;
 }
@@ -401,6 +403,23 @@ select.input {
 
 .choice-option:is([data-hover="true"], [data-focus-visible="true"], [data-selected="true"]) {
   color: var(--ink);
+}
+
+/* The row under the pointer or the keys tinted in the mark's own shape and place, lighter than the mark, so it shows
+   which row a tap would pick; under its text, the row's transform making it a layer of its own */
+.choice-option::before {
+  content: "";
+  position: absolute;
+  inset: 2px 4px;
+  z-index: -1;
+  border-radius: calc(var(--radius-control) - 3px);
+  background: color-mix(in oklab, var(--ink) 5%, transparent);
+  opacity: 0;
+  transition: opacity var(--duration-quick) var(--ease-out);
+}
+
+.choice-option:is([data-hover="true"], [data-focus-visible="true"])::before {
+  opacity: 1;
 }
 
 /* The current choice under a mark with its check; picking slides the mark to the new one before the list folds */
@@ -720,17 +739,13 @@ select.input {
 }
 
 /* Opened from a card, the picture and the name travel from the card into the head (profile-morph.ts) */
+/* Scaled from their top left corner by glide() (quote-morph.ts). The name is set in another size and weight there, so
+   each picture of it keeps its own shape: both are as wide as the part, which starts at the old one's width */
 ::view-transition-group(profile-avatar),
 ::view-transition-group(profile-name) {
   animation-duration: 520ms;
   animation-timing-function: var(--ease-smooth-out);
-}
-
-/* The name is set in another size and weight there, so each picture of it keeps its own shape */
-::view-transition-old(profile-name),
-::view-transition-new(profile-name) {
-  height: 100%;
-  object-fit: contain;
+  transform-origin: 0 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -779,15 +794,11 @@ select.input {
   view-transition-name: quote-text;
 }
 
+/* Scaled from its top left corner by glide() (quote-morph.ts), each picture of the sentence keeping its own shape */
 ::view-transition-group(quote-text) {
   animation-duration: 560ms;
   animation-timing-function: var(--ease-smooth-out);
-}
-
-::view-transition-old(quote-text),
-::view-transition-new(quote-text) {
-  height: 100%;
-  object-fit: contain;
+  transform-origin: 0 0;
 }
 
 .dark .detail-figure .quote {
@@ -1362,7 +1373,16 @@ select.input {
   z-index: 1;
 }
 
-/* HeroUI's ripple on a control that is not a HeroUI Button (usePressRipple), clipped to the control's shape */
+/* A ripple's disc (motion/ripple.ts), in the control's own colour, under its words as HeroUI drew its own */
+.ripple-disc {
+  position: absolute;
+  z-index: 0;
+  border-radius: 100%;
+  background: currentColor;
+  pointer-events: none;
+}
+
+/* The ripple on a control that is not a HeroUI Button (usePressRipple), clipped to the control's shape */
 .press-ripple {
   position: absolute;
   inset: 0;
@@ -2562,6 +2582,26 @@ select.input {
   .secret {
     grid-template-columns: minmax(0, 1fr);
     padding: var(--space-5);
+  }
+
+  /* The key takes the whole width; the copy button and 我已妥善儲存 share the row under it */
+  .secret-body {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-2);
+  }
+
+  .secret-body > :is(.secret-field, .dialog-actions) {
+    display: contents;
+  }
+
+  .secret-title,
+  .secret-value {
+    grid-column: 1 / -1;
+  }
+
+  .secret-body .dialog-actions > .button {
+    justify-self: start;
   }
 }
 

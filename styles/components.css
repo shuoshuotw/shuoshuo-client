@@ -937,8 +937,7 @@
     opacity: 0;
     filter: blur(var(--blur-medium));
   }
-}
-/* Reduced motion keeps the reveal: it only fades and blurs, nothing moves, and without it the skeleton stood over the
+}/* Reduced motion keeps the reveal: it only fades and blurs, nothing moves, and without it the skeleton stood over the
    content for the whole reveal */
 @media (prefers-reduced-motion: reduce) {
   .chart-row {
@@ -1042,21 +1041,29 @@
 }
 
 /* While it grows or shrinks the morph places the card itself, and its contents keep their open size and stay put at
-   its top, so nothing reflows and no scrollbar shows */
+   its top, so nothing reflows. They stay where the open card has them, and the morph keeps them in the middle of the
+   card by a transform (dialog-morph.ts): centred by layout, they moved on every frame as the card widened, and a phone
+   painted them all again on each one.
+   The card is placed from the dialog's top left corner, where these margins put it whatever its width; it stays in the
+   flow, as it is when open. Taken out of it (fixed), it was built anew as it went out and again as it came back in,
+   and a phone, drawing the whole card again as it landed, showed the page through it for a frame */
 .morph-dialog[data-morphing] .morph-card {
-  position: fixed;
-  top: 0;
-  left: 0;
-  margin: 0;
+  margin: 0 auto 0 0;
   will-change: transform, width, height;
 }
 
-.morph-dialog[data-morphing] .morph-inner {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  overflow: hidden;
-  translate: -50% 0;
+/* On a phone the card, its contents and the darkening keep their layers from the start of the morph until the card has
+   gone again: let go as the card landed, they were drawn again into what lay beneath, and the phone, not done in
+   time, showed the page through the card for a few frames. The card and its contents keep them for their fades too,
+   or the end of each fade had them drawn again */
+@media (pointer: coarse) {
+  .morph-dialog:is([open], [data-morphing]) :is(.morph-card, .morph-inner) {
+    will-change: transform, opacity;
+  }
+
+  .morph-dialog:is([open], [data-morphing]) .morph-scrim {
+    will-change: opacity;
+  }
 }
 
 @media (max-width: 639px) {

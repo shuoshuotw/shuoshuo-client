@@ -23,7 +23,8 @@ import { Notice } from "./notice";
 import { VerifiedMark } from "./verified";
 import { ReportButton } from "./report-button";
 import { Reveal } from "./reveal";
-import { RetryNote, StateNote } from "./state-note";
+import { RetryNote } from "./retry-note";
+import { StateNote } from "./state-note";
 
 const COMMENT_EDIT_MINUTES = 20;
 

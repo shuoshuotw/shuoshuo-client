@@ -46,8 +46,18 @@ function settle({ dialog, inner }: MorphParts) {
  */
 function freeze({ dialog, inner }: MorphParts) {
   if (dialog.dataset.morphing) return;
-  inner.style.width = `${inner.offsetWidth}px`;
+  // To the fraction of a pixel: rounded, they were laid out again as the card let go of them, and drawn again
+  inner.style.width = `${inner.getBoundingClientRect().width}px`;
   dialog.dataset.morphing = "true";
+}
+
+/**
+ * The contents stay where the open card has them (styles: .morph-inner) and are kept in the middle of the card as it
+ * changes width by this transform, from the card's width `from` to `to` as it moves. Laid out in the middle instead,
+ * they moved on every frame and were painted again on each.
+ */
+function centre(inner: HTMLElement, from: number, to: number, open: number, timing: KeyframeAnimationOptions) {
+  return inner.animate({ transform: [`translateX(${(from - open) / 2}px)`, `translateX(${(to - open) / 2}px)`] }, { ...timing, fill: "forwards" });
 }
 
 function track(dialog: HTMLDialogElement, animations: Animation[]) {
@@ -121,6 +131,7 @@ export async function openMorph(parts: MorphParts, show: () => void) {
     card.animate({ opacity: [0, 1] }, { duration: CROSS_MS, easing: "linear", fill: "forwards" }),
     origin.animate({ opacity: [1, 0] }, { duration: CROSS_MS, easing: "linear", fill: "forwards" }),
     inner.animate({ opacity: [0, 1] }, { duration: 280, delay: 170, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" }),
+    centre(inner, Number.parseFloat(from.width), Number.parseFloat(to.width), Number.parseFloat(to.width), { duration: OPEN_MS, easing: EASE }),
     scrim.animate({ opacity: [0, 1] }, { duration: OPEN_MS, easing: EASE, fill: "forwards" }),
   ]);
   if (!done) return;
@@ -161,10 +172,13 @@ export async function closeMorph(parts: MorphParts, hide: () => void) {
   settle(parts);
   delete origin.dataset.morphOpen;
   const to = surface(origin);
+  // The card's width when open, from wherever an open still under way had it
+  const open = card.getBoundingClientRect().width;
   if (frozen) inner.style.width = frozen;
   freeze(parts);
   const done = await track(dialog, [
     card.animate([from, to], { duration: CLOSE_MS, easing: CLOSE_EASE, fill: "forwards" }),
+    centre(inner, Number.parseFloat(from.width), Number.parseFloat(to.width), open, { duration: CLOSE_MS, easing: CLOSE_EASE }),
     inner.animate({ opacity: [shown.inner, "0"] }, { duration: 120, easing: "ease-out", fill: "forwards" }),
     card.animate({ opacity: [1, 0] }, { duration: CROSS_MS, delay: CLOSE_MS - CROSS_MS, easing: "linear", fill: "both" }),
     origin.animate({ opacity: [0, 1] }, { duration: CROSS_MS, delay: CLOSE_MS - CROSS_MS, easing: "linear", fill: "backwards" }),

@@ -230,15 +230,32 @@
   position: relative;
   isolation: isolate;
   flex: 1 1 auto;
-  background: #c7c2e8;
+  background: transparent;
   color: #17142a;
   font-weight: 700;
+}
+
+.draw-icon {
+  display: grid;
+}
+
+/* The button's colours are on a layer inside it, not on the button: in the phone's dock that layer slides out to the
+   left under the button's own round clip, which narrows the pill to a circle without laying it out
+   (motion/dock-fold.ts) */
+.draw-face {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #c7c2e8;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.55),
     inset 0 0 0 1px rgb(255 255 255 / 0.3);
+  pointer-events: none;
 }
 
-.toolbar-draw::before {
+.draw-face::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -255,11 +272,10 @@
   pointer-events: none;
 }
 
-.toolbar-draw::after {
+.draw-face::after {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: -1;
   background: linear-gradient(180deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.12) 62%);
   pointer-events: none;
 }
@@ -361,23 +377,25 @@
   }
 }
 
-/* Turned about the middle of the screen */
+/* Turned about the middle of the screen, and laid on at the theme's strength: the canvas is painted at a fixed one
+   (FIELD_PAINT, 0.6 in components/atmosphere.tsx) so it keeps all its shades, and the opacity brings it down */
 .flow {
   position: absolute;
   top: 50%;
   left: 50%;
   width: 0;
   height: 0;
+  opacity: calc(var(--flow-strength) / 0.6);
 }
 
 .flow-a {
   rotate: -16deg;
-  animation: flow-sway 37s var(--ease-in-out) infinite alternate;
+  animation: flow-sway 17s var(--ease-in-out) infinite alternate;
 }
 
 .flow-b {
   rotate: 24deg;
-  animation: flow-sway 53s var(--ease-in-out) infinite alternate-reverse;
+  animation: flow-sway 23s var(--ease-in-out) infinite alternate-reverse;
 }
 
 /* Two periods wide (160vmax each), and reaching 80vmax to every side of the middle wherever it has slid to: further
@@ -389,11 +407,11 @@
   width: 320vmax;
   height: 170vmax;
   will-change: transform;
-  animation: flow-run 84s linear infinite;
+  animation: flow-run 40s linear infinite;
 }
 
 .flow-b canvas {
-  animation-duration: 124s;
+  animation-duration: 56s;
   animation-direction: reverse;
 }
 
@@ -405,11 +423,18 @@
 
 @keyframes flow-sway {
   from {
-    translate: 0 -5vmax;
+    translate: 0 -7vmax;
   }
   to {
-    translate: 0 5vmax;
+    translate: 0 7vmax;
   }
+}
+
+/* Held still while a view transition runs (a quote or a profile opening): the new page under it is drawn live, and with
+   the backdrop or a chip's colours moving, the whole screen was drawn into it again on every frame of the move */
+:root:active-view-transition :is(.flow, .flow canvas),
+:root:active-view-transition .category-chip::before {
+  animation-play-state: paused;
 }
 
 /* A fixed grain over the gradient: it reads as printed rather than rendered, and stops the gradient from banding. A
@@ -420,11 +445,12 @@
   inset: 0;
   background-image: url("/grain.png");
   background-size: 128px;
-  opacity: 0.07;
+  opacity: 0.045;
 }
 
+/* Over a backdrop this dark the grain was the most visible thing in it */
 .dark .atmosphere-grain {
-  opacity: 0.05;
+  opacity: 0.025;
 }
 
 /* The cursor's light rides over everything, cards and header included: it brightens in the dark and tints by day */
@@ -641,9 +667,10 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
     transform 820ms var(--ease-spring),
     opacity var(--duration-slow) var(--ease-in-out);
   transition-delay: calc(var(--abs) * 40ms);
-  /* Kept as its own layer at one raster scale, so a swap never re-rasterises the type mid-flight (it flickered) */
+  /* Kept as its own layer at one raster scale, so a swap never re-rasterises the type mid-flight (it flickered). Not
+     backface-visibility: hidden, which changed nothing a flat card shows, and a phone's picture of the page taken for a
+     view transition left the cards out (each card's body missing for the length of the move) */
   will-change: transform;
-  backface-visibility: hidden;
 }
 
 @property --glare-a {
@@ -660,11 +687,21 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
   gap: var(--space-4);
   height: 100%;
   padding: var(--space-5);
-  overflow: hidden;
   /* The edge is a gradient in the border box, so the light can catch it near the pointer */
   border: 1px solid transparent;
   border-radius: var(--radius-card);
+  /* Nothing on the face reaches past its rounded edge, so nothing is clipped to it: clipped, the chip's flowing colour
+     (a layer of its own) took a rounded mask and a second layer for all that is drawn after it, two more card-sized
+     layers on every card, and a phone's memory ran short as a view transition took its pictures. The category's glow
+     in the top right corner is the face's own top ground for the same reason: a circle 0.4 of the face's width across,
+     its middle 0.95 of the way across and 0.35 of the height above the face's top, less that radius, at 0.55 strength */
   background:
+    radial-gradient(
+        circle calc((var(--card-w) - 2px) * 0.4) at 95% calc(-35% + (var(--card-w) - 2px) * 0.4),
+        color-mix(in oklab, var(--glow) 33%, transparent),
+        transparent
+      )
+      padding-box,
     radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), color-mix(in oklab, var(--card-glare) calc(var(--glare-a) * 100%), transparent), transparent 60%) padding-box,
     linear-gradient(var(--surface), var(--surface)) padding-box,
     radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), color-mix(in oklab, var(--card-edge) calc(var(--glare-a) * 100%), var(--line)), var(--line) 55%) border-box;
@@ -732,21 +769,28 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
   opacity: calc(var(--veil, 0) * 0.5);
 }
 
-.fan-card[data-held="true"] .fan-face::after {
-  opacity: 0;
+/* The chip comes last on the face, over the veil, so nothing drawn after its flowing colour needs a layer of its own
+   (above); it takes the same veil itself */
+.fan-face .category-chip {
+  z-index: 2;
 }
 
-.fan-face::before {
+.fan-face .category-chip::after {
   content: "";
   position: absolute;
-  top: -35%;
-  right: -35%;
-  z-index: -1;
-  width: 80%;
-  aspect-ratio: 1;
-  background: radial-gradient(closest-side, color-mix(in oklab, var(--glow) 60%, transparent), transparent);
-  opacity: 0.55;
+  inset: 0;
+  background: var(--ground);
+  opacity: calc(var(--veil, 0) * 0.32);
   pointer-events: none;
+  transition: opacity 600ms var(--ease-in-out);
+}
+
+.dark .fan-face .category-chip::after {
+  opacity: calc(var(--veil, 0) * 0.5);
+}
+
+.fan-card[data-held="true"] :is(.fan-face, .category-chip)::after {
+  opacity: 0;
 }
 
 .fan-card:is([data-front="true"], [data-held="true"]) .fan-face {
@@ -763,6 +807,8 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
   flex: 1;
   aspect-ratio: auto;
   min-height: 0;
+  /* The face's rounded corners, inside its border, which no longer clips them (above) */
+  border-radius: calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px) 0 0;
 }
 
 .fan-quote {
@@ -793,6 +839,7 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
 
 .fan-face .bench-bar {
   flex-wrap: nowrap;
+  border-radius: 0 0 calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px);
 }
 
 .fan-face .credit a {
@@ -949,6 +996,12 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
     opacity var(--duration-fast) var(--ease-in-out),
     filter var(--duration-fast) var(--ease-in-out),
     translate var(--duration-fast) var(--ease-in-out);
+}
+
+/* The caret is drawn last: blinking, it is a layer of its own, and whatever was drawn after it took one too (the rest
+   of the invitation and the footer, a screen of it, kept in a phone's memory under the latest quotes' hand) */
+.composer-ghost .caret {
+  z-index: 5;
 }
 
 .composer:is([data-focused="true"], [data-empty="false"]) .composer-ghost {
@@ -1175,7 +1228,7 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
   .atmosphere,
   .flow,
   .flow canvas,
-  .toolbar-draw::before,
+  .draw-face::before,
   .draw-wrap::before,
   .draw-sheen {
     animation: none;
@@ -1185,7 +1238,7 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
     transition: none;
   }
 
-  .toolbar-draw::before {
+  .draw-face::before {
     transition: none;
   }
 
@@ -1209,7 +1262,7 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
 :root[data-motion="reduce"] .atmosphere,
 :root[data-motion="reduce"] .flow,
 :root[data-motion="reduce"] .flow canvas,
-:root[data-motion="reduce"] .toolbar-draw::before,
+:root[data-motion="reduce"] .draw-face::before,
 :root[data-motion="reduce"] .draw-wrap::before,
 :root[data-motion="reduce"] .draw-sheen {
   animation: none;
@@ -1225,7 +1278,7 @@ html[data-cursor="custom"] :is(textarea, input, [contenteditable="true"]) {
   transition-property: translate, filter, opacity, color !important;
 }
 
-:root[data-motion="reduce"] .toolbar-draw::before {
+:root[data-motion="reduce"] .draw-face::before {
   transition: none;
 }
 

@@ -3,7 +3,7 @@
 import { Button } from "@heroui/react";
 import { ArrowLeft, CalendarDays, Check, Code, Flag, PencilLine, Share2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api, hasSessionCookie } from "@/lib/api/browser";
 import type { Quote } from "@/lib/api/client";
@@ -45,8 +45,10 @@ export function QuoteDetail({ initial, children }: { initial: Quote; children: R
     return () => clearTimeout(timer);
   }, [quote.id]);
 
-  // Escape goes back to the list the quote was opened from. Not while a dialog, a menu or a field has it
-  useEffect(() => {
+  // Escape goes back to the list the quote was opened from. Not while a dialog, a menu or a field has it. Listened for
+  // from the commit that puts the page in: the view transition that brings it holds plain effects back until its move
+  // has started, and an Escape pressed before then was lost
+  useLayoutEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented || !canGoBack()) return;
       if (document.querySelector("dialog[open], [role='listbox'], .t-morph[data-open='true']")) return;

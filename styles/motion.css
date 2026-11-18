@@ -123,6 +123,79 @@ html:not(.dark) .theme-moon {
   }
 }
 
+/* A page a view transition brings in is faded by the transition alone (quote-morph.ts morphing) */
+[data-morph] .page-in {
+  animation: none;
+}
+
+/* The phone's dock is the same before and after: left in the page's picture it faded out with the old page and in
+   with the new one, two docks half through each other, and a sentence travelling to its page passed over it. Taken
+   out on its own, only the live dock is shown, above what travels, still folding or opening as it goes. Named for
+   good, not as a morph starts: named then, the dock and the page (below) were painted again just as their pictures
+   were taken, and a phone, not done in time, took pictures with whole parts of the page missing; unnamed at the end,
+   they were painted again, and a frame showed nothing. A theme's crossfade still fades the dock with the rest */
+.dock {
+  view-transition-name: dock;
+}
+
+/* A theme's crossfade takes the dock at the root's pace (above), as when it was part of the root's picture */
+::view-transition-old(dock),
+::view-transition-new(dock) {
+  animation-duration: var(--duration-medium);
+  animation-timing-function: var(--ease-in-out);
+}
+
+:root[data-morph]::view-transition-old(dock) {
+  display: none;
+}
+
+:root[data-morph]::view-transition-group(dock),
+:root[data-morph]::view-transition-new(dock) {
+  animation: none;
+}
+
+/* On a phone the page itself crosses over as a part of its own, and the backdrop under it stays the picture taken as
+   the move began (its flows are held still meanwhile, home.css, so that picture is what the screen shows anyway). Left
+   in the live picture of the new page, the flows were drawn whole on every frame, many screens' worth and not only the
+   part on the screen, and a phone's move fell to a handful of frames. Not where the header shows: it sits outside the
+   page, and frozen with the backdrop its pill would jump at the end. Named for good, as the dock is (above) */
+@media (max-width: 767px) and (pointer: coarse) {
+  #app-scroll {
+    view-transition-name: page;
+  }
+
+  :root[data-morph]::view-transition-old(root) {
+    animation: none;
+  }
+
+  :root[data-morph]::view-transition-new(root) {
+    display: none;
+  }
+}
+
+/* The page crosses over as the root did (above); its box stays where it is. Only the group's own move is taken away:
+   the images take their fill from it, and without it the old page came back once it had faded out */
+::view-transition-group(page) {
+  animation-name: none;
+}
+
+::view-transition-old(page),
+::view-transition-new(page) {
+  animation-duration: var(--duration-medium);
+  animation-timing-function: var(--ease-in-out);
+  animation-fill-mode: both;
+}
+
+/* Where a morph's view transition starts (components/morph-mark.tsx): a point, empty, out of the way */
+.morph-mark {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
 /* M-13 */
 .skeleton-lines > span {
   animation: pulse 1.6s var(--ease-linear) infinite;

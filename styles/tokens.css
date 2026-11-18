@@ -113,7 +113,7 @@
   --flow-3: 112 180 236;
   --flow-4: 92 198 176;
   --flow-5: 178 156 232;
-  --flow-strength: 0.5;
+  --flow-strength: 0.3;
   /* The backdrop taken as one colour, for whatever fades into it at the page's edges (.app-scroll) */
   --veil: color-mix(in oklab, rgb(var(--flow-3)) 14%, var(--ground));
   /* The cursor's light moves through the same hues */
@@ -163,13 +163,14 @@
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 24px 48px -16px rgb(0 0 0 / 0.85);
   --glow-strength: 0.3;
   /* By night the same hues burn low: ember, amber, deep blue, sea green, plum */
-  --flow-1: 214 70 56;
-  --flow-2: 196 126 40;
-  --flow-3: 48 96 214;
-  --flow-4: 26 146 136;
-  --flow-5: 124 66 160;
-  --flow-strength: 0.56;
-  --veil: color-mix(in oklab, rgb(var(--flow-3)) 9%, var(--ground));
+  --flow-1: 168 54 44;
+  --flow-2: 150 96 30;
+  --flow-3: 38 76 172;
+  --flow-4: 20 116 108;
+  --flow-5: 98 52 128;
+  --flow-strength: 0.13;
+  /* The ground itself: a tint of blue here read as a band of another colour over the warm parts of the backdrop */
+  --veil: var(--ground);
   --spot-1: #6fd3b0;
   --spot-2: #7ab4ff;
   --spot-3: #ff9aa8;

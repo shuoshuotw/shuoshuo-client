@@ -244,8 +244,11 @@ test.describe("the stage", () => {
     });
     await expect(dock).toHaveAttribute("data-compact", "true");
     await expect(dock.locator(".dock-tab").first()).toHaveCSS("opacity", "0");
-    // The bar keeps its box, so its tabs are never laid out again; its face closes up to the menu button's circle
-    await expect.poll(() => dock.locator(".dock-tabs").evaluate((bar) => Math.round(Number.parseFloat(getComputedStyle(bar, "::before").width)))).toBe(56);
+    // The bar keeps its box, so its tabs are never laid out again; its face slides out to the left under the bar's
+    // round clip until what is left of it is the menu button's circle
+    await expect.poll(() => dock.locator(".dock-tabs").evaluate((bar: HTMLElement) => Math.round(bar.offsetWidth + new DOMMatrix(getComputedStyle(bar, "::before").transform).m41))).toBe(56);
+    // Only transforms and opacities ran: the bar in the slot was never laid out on the way
+    await expect(dock).toHaveAttribute("data-fold", "true");
 
     // The button grows into the menu (a disclosure), and folds back on Escape or once a page is chosen
     const morph = dock.locator(".dock-morph");
@@ -291,7 +294,7 @@ test.describe("latest quotes", () => {
     await open(page);
     const latest = page.locator(".latest");
     await latest.scrollIntoViewIfNeeded();
-    await expect(page.locator(".fan")).toHaveAttribute("data-open", "true");
+    await expect(page.locator(".fan")).toHaveAttribute("data-spread", "true");
     await latest.getByRole("button", { name: "暫停輪播" }).click();
     await expect(latest.getByRole("button", { name: "繼續輪播" })).toBeVisible();
 
@@ -345,7 +348,7 @@ test.describe("latest quotes", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await open(page);
     await page.locator(".latest").scrollIntoViewIfNeeded();
-    await expect(page.locator(".fan")).toHaveAttribute("data-open", "true");
+    await expect(page.locator(".fan")).toHaveAttribute("data-spread", "true");
     await page.mouse.move(5, 5);
     // One swap comes 4.5 s after the hand opens
     await expect(front(page)).toHaveAttribute("aria-label", /^第 2 句/, { timeout: 7000 });

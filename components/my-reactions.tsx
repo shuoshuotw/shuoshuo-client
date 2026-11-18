@@ -10,7 +10,8 @@ import { QuoteRow } from "./quote-row";
 import { useListReactions } from "./reaction-buttons";
 import { Reveal } from "./reveal";
 import { PageHead } from "./site-chrome";
-import { RetryNote, StateNote } from "./state-note";
+import { RetryNote } from "./retry-note";
+import { StateNote } from "./state-note";
 
 const COPY = {
   favorite: { title: "我的收藏", icon: Bookmark, path: "/v1/me/favorites?limit=20", empty: "你還沒有收藏任何說說" },

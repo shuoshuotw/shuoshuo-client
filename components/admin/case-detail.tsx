@@ -9,7 +9,7 @@ import { ChoiceField, Field, FormError, useFormErrors } from "@/components/form"
 import { LinkButton } from "@/components/link-button";
 import { Notice } from "@/components/notice";
 import { PageHead } from "@/components/site-chrome";
-import { RetryNote } from "@/components/state-note";
+import { RetryNote } from "@/components/retry-note";
 import { ACTOR_TYPES, auditAction, type ResolveCaseResult } from "@/lib/api/admin";
 import { api, apiPage } from "@/lib/api/browser";
 import { ApiFailure, type CaseDetail, type CaseSummary, type Comment, type OwnQuote, type ReportReason } from "@/lib/api/client";

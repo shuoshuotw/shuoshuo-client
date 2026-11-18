@@ -28,16 +28,21 @@ const kindOf = (target: Element | null): Kind => {
   return "on";
 };
 
-// One period of a field, in canvas pixels; a field holds two side by side, so sliding one period along loops without a seam
-const TILE = 320;
-const TALL = 340;
+// One period of a field, in canvas pixels; a field holds two side by side, so sliding one period along loops without a seam.
+// Shown about four times its size: at eight times, every canvas pixel showed as a cell of its own
+const TILE = 640;
+const TALL = 680;
+// How strongly the pools are painted into the canvas. The theme's strength is laid on afterwards as the layer's opacity
+// (styles/home.css): painted at that strength, a dark theme's pools had some fifty shades between nothing and their
+// deepest, and stretched over the screen each step showed as a band of cells
+const FIELD_PAINT = 0.6;
 
 /**
  * A field of colour: soft pools of the theme's five hues, each pulled out along the current, the same every visit
  * (seeded). It is painted here once, small, and stretched over the screen: a gradient this soft loses nothing to that,
  * and the picture a phone moves is a few hundred pixels wide.
  */
-function paintField(canvas: HTMLCanvasElement, hues: string[], strength: number, seed: number) {
+function paintField(canvas: HTMLCanvasElement, hues: string[], seed: number) {
   const context = canvas.getContext("2d");
   if (!context) return;
   canvas.width = TILE * 2;
@@ -64,7 +69,7 @@ function paintField(canvas: HTMLCanvasElement, hues: string[], strength: number,
       context.rotate(turn);
       context.scale(1, flat);
       const pool = context.createRadialGradient(0, 0, 0, 0, 0, long);
-      for (const [stop, share] of [[0, 1], [0.3, 0.76], [0.6, 0.32], [0.85, 0.07], [1, 0]] as const) pool.addColorStop(stop, `rgb(${hue} / ${strength * share})`);
+      for (const [stop, share] of [[0, 1], [0.3, 0.76], [0.6, 0.32], [0.85, 0.07], [1, 0]] as const) pool.addColorStop(stop, `rgb(${hue} / ${FIELD_PAINT * share})`);
       context.fillStyle = pool;
       context.fillRect(-long, -long, long * 2, long * 2);
       context.restore();
@@ -99,10 +104,9 @@ export function Atmosphere() {
     const paint = () => {
       const style = getComputedStyle(root);
       const hues = [1, 2, 3, 4, 5].map((index) => style.getPropertyValue(`--flow-${index}`).trim());
-      const strength = Number(style.getPropertyValue("--flow-strength")) || 0.4;
-      if (fieldA.current) paintField(fieldA.current, hues, strength, 7);
+      if (fieldA.current) paintField(fieldA.current, hues, 7);
       // The second field meets the first with other hues, so no colour only ever crosses itself
-      if (fieldB.current) paintField(fieldB.current, [hues[3]!, hues[0]!, hues[4]!, hues[1]!, hues[2]!], strength, 23);
+      if (fieldB.current) paintField(fieldB.current, [hues[3]!, hues[0]!, hues[4]!, hues[1]!, hues[2]!], 23);
     };
     paint();
     // The theme toggle swaps a class on the root. Other classes come and go there too, and each read restyles the page

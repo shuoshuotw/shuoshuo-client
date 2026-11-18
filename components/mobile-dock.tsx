@@ -5,6 +5,7 @@ import { BookOpen, FileText, Flame, type LucideIcon, Menu, PenLine, Quote, Rocke
 import { usePathname } from "next/navigation";
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DOCS_URL } from "@/lib/docs";
+import { foldSlot } from "@/motion/dock-fold";
 import { AuthButton } from "./auth-button";
 import { LinkButton } from "./link-button";
 import { Logo } from "./logo";
@@ -25,10 +26,25 @@ const MENU: { href: string; label: string; icon: LucideIcon }[] = [
   { href: `${DOCS_URL}/quickstart`, label: "快速上手", icon: Rocket },
 ];
 
+const MORPH_PARTS = ["across", "down", "tl", "tr", "bl", "br"];
+
+// How far down from where the scroll turned the bar folds, how far back up it opens out, and the top it never folds in
+const FOLD_PX = 12;
+const OPEN_PX = 36;
+const TOP_PX = 96;
+
 // How long the menu takes to fold back into its button (--morph-close-dur), so a page change waits for it
 const CLOSE_MS = 300;
 
 const isActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+// While the bar is open the menu button is only transparent (styles: .dock-morph), so it is taken out of reach and out of
+// the accessibility tree by hand
+const hideMenu = (morph: HTMLElement, hidden: boolean) => {
+  morph.inert = hidden;
+  if (hidden) morph.setAttribute("aria-hidden", "true");
+  else morph.removeAttribute("aria-hidden");
+};
 
 /**
  * The phone's header, at the bottom where a thumb reaches it: the pages in a bar with the account beside them.
@@ -55,18 +71,21 @@ export function MobileDock() {
 
   // Folds the bar or opens it out, straight on the dock's own element: rendering the dock as the page scrolled was a
   // long task on a phone just as the fold began. Which of the bar and the menu is reachable goes with it
+  // data-fold is which way the dock is going, and everything of its own follows it at once; data-compact is the layout
+  // of the bar in the slot, which foldSlot changes only at the end of the move it runs
   const fold = useCallback((next: boolean) => {
     const root = dock.current;
     if (!root || compact.current === next) return;
     compact.current = next;
-    root.dataset.compact = String(next);
+    root.dataset.fold = String(next);
+    foldSlot(root, next);
     if (!next) root.dataset.bump = ++bumps.current % 2 ? "a" : "b";
     if (tabs.current) tabs.current.inert = next;
-    if (morph.current) morph.current.inert = !next;
+    if (morph.current) hideMenu(morph.current, !next);
   }, []);
 
   useLayoutEffect(() => {
-    if (morph.current) morph.current.inert = true;
+    if (morph.current) hideMenu(morph.current, true);
   }, []);
 
   // A bar in the slot can ask for the room back (the categories opening out), and keeps it for a moment of scrolling
@@ -79,11 +98,12 @@ export function MobileDock() {
     return () => document.removeEventListener("dock-expand", expand);
   }, [fold]);
 
-  // Open: the first page link takes focus once the surface has grown; Escape or a tap outside folds it away
+  // Open: the first page link takes focus once the surface has grown (focused while it grew, its restyle took frames
+  // from the opening on a phone); Escape or a tap outside folds it away
   useEffect(() => {
     const root = morph.current;
     if (!menuOpen || !root) return;
-    const focus = setTimeout(() => root.querySelector<HTMLElement>(".dock-menu-item")?.focus({ preventScroll: true }), 160);
+    const focus = setTimeout(() => root.querySelector<HTMLElement>(".dock-menu-item")?.focus({ preventScroll: true }), 380);
     const away = (event: PointerEvent) => {
       if (!root.contains(event.target as Node)) setMenuOpen(false);
     };
@@ -106,18 +126,32 @@ export function MobileDock() {
   useEffect(() => {
     const scroller = document.getElementById("app-scroll");
     if (!scroller) return;
-    let last = scroller.scrollTop;
+    // Where the scroll turned last: the furthest down since the bar folded, the furthest up since it opened out. The
+    // bar folds a little way down from there, and opens out only once the reader has come back up some way (or near
+    // the top): a slow scroll wavers by a few pixels, and with one threshold both ways it folded and opened out again
+    // under a finger that had hardly moved
+    let turned = scroller.scrollTop;
     let frame = 0;
     const read = () => {
       frame = 0;
       const top = scroller.scrollTop;
       if (menuWasOpen.current || performance.now() < frozenUntil.current) {
-        last = top;
+        turned = top;
         return;
       }
-      if (Math.abs(top - last) < 8) return;
-      fold(top > 96 && top > last);
-      last = top;
+      if (compact.current) {
+        turned = Math.max(turned, top);
+        if (turned - top > OPEN_PX || top <= TOP_PX) {
+          fold(false);
+          turned = top;
+        }
+      } else {
+        turned = Math.min(turned, top);
+        if (top - turned > FOLD_PX && top > TOP_PX) {
+          fold(true);
+          turned = top;
+        }
+      }
     };
     const follow = () => {
       frame ||= requestAnimationFrame(read);
@@ -144,6 +178,7 @@ export function MobileDock() {
   const bar = useMemo(
     () => (
       <nav ref={tabs} className="dock-tabs" aria-label="主要導覽" data-pill={current < 0 ? "off" : "on"} style={{ "--i": current } as CSSProperties}>
+        <span className="dock-tabs-face" aria-hidden="true" />
         <span className="nav-pill" aria-hidden="true" />
         {TABS.map(({ href, label, icon: Icon }) => (
           <LinkButton
@@ -211,9 +246,26 @@ export function MobileDock() {
   const menu = useMemo(
     () => (
       <div ref={morph} className="t-morph dock-morph" data-open={menuOpen}>
-        <div id="dock-menu" className="t-morph-menu dock-sheet" inert={!menuOpen}>
-          {sheet}
-        </div>
+        {/* The box the button grows into, in pieces that only move (styles: morph box): its shadows, its line, and
+            the clips that close over the menu */}
+        <span className="t-morph-shade" data-shade="low" aria-hidden="true" />
+        <span className="t-morph-shade" data-shade="high" aria-hidden="true" />
+        <span className="mbox-line" aria-hidden="true">
+          {MORPH_PARTS.map((part) => (
+            <span key={part} data-part={part} />
+          ))}
+        </span>
+        <span className="mbox-clip" data-corner="tl">
+          <span className="mbox-clip" data-corner="tr">
+            <span className="mbox-clip" data-corner="br">
+              <span className="mbox-clip" data-corner="bl">
+                <div id="dock-menu" className="t-morph-menu dock-sheet" inert={!menuOpen}>
+                  {sheet}
+                </div>
+              </span>
+            </span>
+          </span>
+        </span>
         {/* Pinned to the corner the surface grows from, so it stays put while the box opens out of it */}
         <Button
           isIconOnly
@@ -226,8 +278,12 @@ export function MobileDock() {
           onPress={() => setMenuOpen((open) => !open)}
         >
           <span className="icon-swap" data-swapped={menuOpen} aria-hidden="true">
-            <Menu size={22} />
-            <X size={22} />
+            <span>
+              <Menu size={22} />
+            </span>
+            <span>
+              <X size={22} />
+            </span>
           </span>
         </Button>
       </div>
@@ -245,7 +301,16 @@ export function MobileDock() {
   );
 
   return (
-    <div ref={dock} className="dock" data-compact="false">
+    <div ref={dock} className="dock" data-fold="false" data-compact="false">
+      {/* The slot's bar's face while the dock folds (motion/dock-fold.ts) */}
+      <span className="dock-face" aria-hidden="true">
+        <span>
+          <span />
+        </span>
+        <span>
+          <span />
+        </span>
+      </span>
       {/* A page's bar moves in here on a phone: the home page's or a quote's toolbar, the personal centre's tabs */}
       <div id="dock-slot" className="dock-slot" />
       {bar}
