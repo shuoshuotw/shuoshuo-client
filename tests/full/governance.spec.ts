@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { ageAccount, coreCall, coreToken, distinctCaller, expect, makeAdmin, newUser, signIn, signOut, submitQuote, test, uniqueQuote } from "./helpers";
+import { ageAccount, choose, coreCall, coreToken, distinctCaller, expect, landed, makeAdmin, newUser, signIn, signOut, submitQuote, test, uniqueQuote } from "./helpers";
 
 async function reportedQuote() {
   const author = await newUser();
@@ -41,7 +41,7 @@ test("E2E-10: the queue, a decision, and straight on to the next case", async ({
   await expect(page.getByText("一直重複貼")).toBeVisible();
 
   await page.getByLabel(/^確認違規/).check();
-  await page.getByLabel("違規原因").selectOption("spam");
+  await choose(page, "違規原因", "垃圾內容");
   await page.getByLabel("內部備註").fill("明顯灌水");
   await page.getByRole("button", { name: "確認違規" }).click();
 
@@ -123,7 +123,7 @@ test("the whole way: uphold, barred from submitting, notice, appeal, accepted", 
 
   await offenderPage.goto("/me/standing");
   await offenderPage.getByRole("button", { name: "提出申訴" }).click();
-  const dialog = offenderPage.getByRole("dialog", { name: "對處分提出申訴？" });
+  const dialog = await landed(offenderPage.getByRole("dialog", { name: "對處分提出申訴？" }));
   await dialog.getByLabel("申訴內容").fill("太短");
   await dialog.getByRole("button", { name: "提交申訴" }).click();
   await expect(offenderPage.getByText("申訴內容須為 20 至 1000 字")).toBeVisible();
@@ -142,7 +142,8 @@ test("the whole way: uphold, barred from submitting, notice, appeal, accepted", 
 
   await offenderPage.reload();
   await expect(offenderPage.getByText("已接受").first()).toBeVisible();
-  await expect(offenderPage.getByText("管理員說明：確認判斷有誤，已恢復。")).toBeVisible();
+  await expect(offenderPage.locator(".appeal-reply")).toContainText("管理員回覆");
+  await expect(offenderPage.locator(".appeal-reply-text")).toHaveText("確認判斷有誤，已恢復。");
   await expect(offenderPage.getByText("狀態正常")).toBeVisible();
 
   const restored = await coreCall(`/v1/quotes/${id}`);
@@ -154,25 +155,26 @@ test("a manual ban and its lift, from the user page", async ({ page }) => {
   const target = await newUser();
   await signIn(page, await newModerator());
   await page.goto(`/admin/users/${target.id}`);
-  await expect(page.getByRole("heading", { level: 1, name: target.username })).toBeVisible();
+  // The page asks Core who is signed in, then for the user: both in turn on a busy machine
+  await expect(page.getByRole("heading", { level: 1, name: target.username })).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "手動處分" }).click();
-  const dialog = page.getByRole("dialog", { name: `處分 ${target.username}` });
-  await dialog.getByLabel("種類").selectOption("account_ban");
+  const dialog = await landed(page.getByRole("dialog", { name: `處分 ${target.username}` }));
+  await choose(dialog, "種類", "帳號停權");
   await dialog.getByLabel("原因").fill("手動停權測試");
   await dialog.getByRole("button", { name: "建立處分" }).click();
   await expect(page.getByText("帳號已停權")).toBeVisible();
   await expect(page.getByRole("cell", { name: "手動停權測試" })).toBeVisible();
 
   await page.getByRole("button", { name: "解除" }).click();
-  const lift = page.getByRole("dialog", { name: "解除這項處分" });
+  const lift = await landed(page.getByRole("dialog", { name: "解除這項處分" }));
   await lift.getByLabel("原因").fill("誤判");
   await lift.getByRole("button", { name: "解除處分" }).click();
   await expect(page.getByText("狀態正常")).toBeVisible();
   await expect(page.getByRole("cell", { name: "已解除" })).toBeVisible();
 
   await page.getByRole("button", { name: "重設名稱" }).click();
-  const reset = page.getByRole("dialog", { name: `重設 ${target.username} 的名稱` });
+  const reset = await landed(page.getByRole("dialog", { name: `重設 ${target.username} 的名稱` }));
   await reset.getByLabel("原因").fill("不當名稱");
   await reset.getByRole("button", { name: "重設名稱" }).click();
   await expect(page.getByRole("heading", { level: 1, name: target.username })).toHaveCount(0);
@@ -188,7 +190,9 @@ test("the audit log filters by action and opens its details", async ({ page }) =
 
   await signIn(page, moderator);
   await page.goto("/admin/audit");
-  await page.getByLabel("動作").selectOption("case.resolve");
+  // Once the log is there: the filters are drawn again as it arrives, and a list opened before that is closed by it
+  await expect(page.getByRole("row")).not.toHaveCount(0);
+  await choose(page, "動作", "處理檢舉");
   await page.getByLabel("操作目標 ID").fill(found.id);
   await expect(page.getByRole("row")).toHaveCount(2);
   await expect(page.getByRole("cell", { name: "處理檢舉" })).toBeVisible();

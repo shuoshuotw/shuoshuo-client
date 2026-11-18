@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, KeyRound, Plus } from "lucide-react";
+import { ArrowRight, Check, Copy, KeyRound, Plus, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type RefObject, useEffect, useRef, useState } from "react";
@@ -8,13 +8,16 @@ import { flushSync } from "react-dom";
 import { BarredNote } from "@/components/barred-note";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ChoiceField, Field, FormError, useFormErrors } from "@/components/form";
+import { LinkButton } from "@/components/link-button";
 import { MeGate } from "@/components/me-gate";
 import { MorphDialog } from "@/components/morph-dialog";
+import { Notice } from "@/components/notice";
 import { PageHead } from "@/components/site-chrome";
-import { RetryNote, StateNote } from "@/components/state-note";
+import { RetryNote } from "@/components/retry-note";
+import { StateNote } from "@/components/state-note";
 import { type SendPhase, SendStatus } from "@/components/send-status";
 import { api } from "@/lib/api/browser";
-import { type ApiKey, type ApiKeyScope, type ApiKeyWithSecret, ApiFailure } from "@/lib/api/client";
+import { type ApiKey, type ApiKeyScope, type ApiKeyWithSecret, ApiFailure, type Standing } from "@/lib/api/client";
 import { countChars, formatDate, formatTime } from "@/lib/format";
 import { API_SCOPES } from "@/lib/labels";
 import { askToReauth, notify } from "@/lib/toast";
@@ -36,14 +39,14 @@ export default function ApiKeysPage() {
             <BarredNote standing={me.standing} />
           </>
         ) : (
-          <ApiKeys />
+          <ApiKeys standing={me.standing} />
         )
       }
     </MeGate>
   );
 }
 
-function ApiKeys() {
+function ApiKeys({ standing }: { standing: Standing }) {
   const { items, setItems, status, reload } = usePagedList<ApiKey>("/v1/me/api-keys");
   const pathname = usePathname();
   const [revealed, setRevealed] = useState<ApiKeyWithSecret | null>(null);
@@ -52,9 +55,21 @@ function ApiKeys() {
   // Keys deleted while their dialog is still open; each leaves the table once the dialog is back in its button
   const deleted = useRef(new Set<string>());
 
+  // A key has just been made and its panel has not been given the focus yet
+  const fresh = useRef(false);
+
   const created = (key: ApiKeyWithSecret) => {
     setItems((current) => [key, ...current.filter((item) => item.id !== key.id)]);
     setRevealed(key);
+    fresh.current = true;
+  };
+
+  // The new key is the one thing on the page that matters now. Its panel takes the focus once the dialog that made it is
+  // back in its button: taken any sooner, the open dialog pulled the focus back and then handed it to the button
+  const focusFresh = () => {
+    if (!fresh.current) return;
+    fresh.current = false;
+    secret.current?.focus();
   };
 
   const needsReauth = (failure: unknown) => {
@@ -104,10 +119,25 @@ function ApiKeys() {
           title="建立 API Key"
           triggerClassName="button button-primary"
           magnet
+          onClosed={focusFresh}
         >
           {(close) => <CreateKeyForm close={close} onCreated={created} onReauth={needsReauth} />}
         </MorphDialog>
       </div>
+      {/* A suspension holds back what the account's keys may submit too (Core, D-12), so the page says so like 我的帳號 */}
+      {standing.status === "suspended" && (
+        <Notice
+          icon={TriangleAlert}
+          title="你的 API Key 提交權限已被暫停"
+          action={
+            <LinkButton href="/me/standing" radius="full" variant="bordered" data-magnet endContent={<ArrowRight aria-hidden="true" size={18} />}>
+              查看原因與申訴
+            </LinkButton>
+          }
+        >
+          在受處分的期間，你的 API Key 提交權限也會受到限制。
+        </Notice>
+      )}
       {revealed && <SecretReveal ref={secret} apiKey={revealed} onDismiss={hideSecret} />}
       {status === "loading" ? (
         <div className="table-scroll" aria-busy="true">
@@ -157,7 +187,7 @@ function ApiKeys() {
                   <td data-label="前綴">
                     <code>{key.key_prefix}</code>
                   </td>
-                  <td data-label="權限" className="table-roomy">{key.scopes.map((scope) => API_SCOPES[scope]).join("、")}</td>
+                  <td data-label="權限" className="table-roomy">{key.scopes.map((scope) => API_SCOPES[scope]).filter(Boolean).join("、")}</td>
                   <td data-label="到期" className="table-nowrap">{expiry(key.expires_at)}</td>
                   <td data-label="最後使用">{key.last_used_at ? <DayAndTime at={key.last_used_at} /> : <span className="nowrap">尚未使用</span>}</td>
                   <td data-label="建立於" className="table-nowrap">{formatDate(key.created_at)}</td>
@@ -170,6 +200,7 @@ function ApiKeys() {
                         confirm="重新產生"
                         tone="warning"
                         onConfirm={() => regenerate(key.id)}
+                        onClosed={focusFresh}
                       />
                       <ConfirmButton
                         label="刪除"
@@ -192,13 +223,16 @@ function ApiKeys() {
   );
 }
 
-/** A moment as its day and its time, which may go on two lines but never break inside either. */
+/**
+ * A moment as its day and its time, which may go on two lines but never break inside either. One element: as two, a
+ * phone's card (a grid of label and value) put the time on a row of its own under the labels.
+ */
 function DayAndTime({ at }: { at: string }) {
   const [day, ...time] = formatTime(at).split(" ");
   return (
-    <>
+    <span>
       <span className="nowrap">{day}</span> <span className="nowrap">{time.join(" ")}</span>
-    </>
+    </span>
   );
 }
 
@@ -227,9 +261,7 @@ function SecretReveal({ ref: panel, apiKey, onDismiss }: { ref: RefObject<HTMLEl
   const [copied, setCopied] = useState(false);
   const [phase, setPhase] = useState<SendPhase>("sending");
 
-  // The one thing on the page that matters now, and the dialog that opened it has just closed
   useEffect(() => {
-    panel.current?.focus();
     setPhase("sending");
     const timer = setTimeout(() => setPhase("done"), prefersReduced() ? 0 : 650);
     return () => clearTimeout(timer);

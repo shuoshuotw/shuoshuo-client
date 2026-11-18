@@ -3,10 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { prefersReduced } from "@/motion/log";
-import { quoteTextOf } from "@/motion/quote-morph";
-
-// The new page has this long to arrive before the picture of the old one lets go
-const WAIT_MS = 1500;
+import { arrival, glide, morphing, quoteTextOf, WAIT_MS } from "@/motion/quote-morph";
 
 // Whether this tab has moved between the site's own pages since it loaded, so a step back stays on the site
 let moved = false;
@@ -127,22 +124,22 @@ export function goBack(router: { back: () => void }) {
     router.back();
     return;
   }
+  // Started here, not by React as a quote is opened (quote-morph.ts beginMorph): React puts a page the back button
+  // brings in at once, inside the browser's popstate, and starts no transition for it
   let landed: HTMLElement | null = null;
-  const transition = document.startViewTransition(
-    () =>
-      new Promise<void>((resolve) => {
-        router.back();
-        const start = performance.now();
-        // Rendering is held during the transition, so no animation frame comes to poll with
-        const arrived = () => {
-          const link = document.querySelector(".detail-stage") ? null : document.querySelector<HTMLElement>(`[data-quote-id="${id}"]`);
-          landed = link ? quoteTextOf(link) : null;
-          if (landed) landed.style.viewTransitionName = "quote-text";
-          if (landed || performance.now() - start > WAIT_MS) resolve();
-          else setTimeout(arrived, 16);
-        };
-        arrived();
-      }),
-  );
-  void transition.finished.finally(() => landed?.style.removeProperty("view-transition-name"));
+  const unmark = morphing();
+  const transition = document.startViewTransition(async () => {
+    router.back();
+    // The card the quote was opened from, once the list is back and the quote's own page has gone
+    const card = () => (document.querySelector(".detail-stage") ? null : document.querySelector<HTMLElement>(`[data-quote-id="${id}"]`));
+    if (!(await arrival(() => card() !== null, WAIT_MS))) return;
+    landed = quoteTextOf(card()!);
+    if (landed) landed.style.viewTransitionName = "quote-text";
+  });
+  // The sentence goes back by a transform alone, as it came (quote-morph.ts)
+  glide(transition);
+  void transition.finished.finally(() => {
+    landed?.style.removeProperty("view-transition-name");
+    unmark();
+  });
 }

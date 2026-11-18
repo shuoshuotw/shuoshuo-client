@@ -117,6 +117,22 @@ export function ChoiceField<K extends string>({ label, value, options, onChange,
     return { list, scroll, trigger, mark, row, rows: [...list.querySelectorAll<HTMLElement>('[role="option"]')] };
   };
 
+  // The list's place on the screen is worked out from its box (React Aria), and worked out again whenever the box
+  // changes size. Growing from the trigger's height, a list with no room below first fitted there, then no longer did
+  // and jumped above the trigger mid-way, having started from the bottom of the screen. So the frame it is placed by
+  // is held at the list's whole height while the list opens or folds inside it. Returns the way to let go.
+  const frameOf = (list: HTMLElement) => {
+    let frame = list.parentElement;
+    while (frame && frame !== document.body && !frame.style.top && !frame.style.bottom) frame = frame.parentElement;
+    return frame && frame !== document.body ? frame : null;
+  };
+  const hold = (list: HTMLElement) => {
+    const held = frameOf(list);
+    if (!held) return () => {};
+    held.style.minHeight = `${held.offsetHeight}px`;
+    return () => held.style.removeProperty("min-height");
+  };
+
   const place = (mark: HTMLElement, row: HTMLElement | null) => {
     if (row) mark.style.translate = `0 ${row.offsetTop + (ROW_PX - 40) / 2}px`;
   };
@@ -125,10 +141,23 @@ export function ChoiceField<K extends string>({ label, value, options, onChange,
   // held still against the page so the rows stay put while the box opens over them
   useLayoutEffect(() => {
     if (!open) return;
-    const frame = requestAnimationFrame(() => {
+    let frame = 0;
+    let looked = 0;
+    const show = () => {
       const found = parts();
-      if (!found) return;
+      // The popover puts the list on the page a frame after `open`, or several on a busy phone or a page still loading.
+      // It is hidden until it is marked shown here, so a list that was not there yet is looked for again: found once
+      // and given up on, it stayed open and invisible
+      if (!found) {
+        looked += 1;
+        if (looked < 40) frame = requestAnimationFrame(show);
+        return;
+      }
       const { list, scroll, trigger, mark, row, rows } = found;
+      // No taller than the room the popover was given (the max-height React Aria puts on its frame). A long list ran
+      // off the bottom of the screen otherwise, and reaching its last rows scrolled the page, which closes the list
+      const room = Number.parseFloat(getComputedStyle(frameOf(list) ?? list).maxHeight);
+      if (Number.isFinite(room)) scroll.style.maxHeight = `${Math.min(LIST_MAX_PX, room - 2)}px`;
       const current = row(options[at]![0]);
       if (long && current) scroll.scrollTop = Math.max(0, current.offsetTop - (scroll.clientHeight - ROW_PX) / 2);
       place(mark, current);
@@ -137,14 +166,16 @@ export function ChoiceField<K extends string>({ label, value, options, onChange,
       const band = long ? 0 : bandOf(list, current);
       // Held off its place near an edge of the screen, the list starts over the trigger all the same
       const shift = trigger.getBoundingClientRect().top - list.getBoundingClientRect().top - band;
-      list.animate({ height: [`${TRIGGER_PX}px`, `${list.offsetHeight}px`], translate: [`0 ${band + shift}px`, "0 0"] }, OPEN_EASE);
+      const release = hold(list);
+      list.animate({ height: [`${TRIGGER_PX}px`, `${list.offsetHeight}px`], translate: [`0 ${band + shift}px`, "0 0"] }, OPEN_EASE).finished.then(release, release);
       scroll.animate({ translate: [`0 ${-band}px`, "0 0"] }, OPEN_EASE);
       rows.forEach((item, position) => {
         const distance = Math.abs(position - at);
         if (distance === 0) return;
         item.animate({ opacity: [0, 1], filter: ["blur(3px)", "blur(0)"] }, { duration: 260, delay: 40 + distance * 26, easing: "ease-out", fill: "backwards" });
       });
-    });
+    };
+    frame = requestAnimationFrame(show);
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per opening; `at` is fixed while it is open
   }, [open]);
@@ -175,6 +206,8 @@ export function ChoiceField<K extends string>({ label, value, options, onChange,
     const wait = moved ? SLIDE_MS - 50 : 0;
     const band = bandOf(list, target);
     const landing = trigger.getBoundingClientRect().top - list.getBoundingClientRect().top;
+    // Held until the list is taken away
+    hold(list);
     for (const item of rows) {
       if (item !== target) item.animate({ opacity: [1, 0], filter: ["blur(0)", "blur(3px)"] }, { duration: 160, delay: wait, easing: "ease-out", fill: "forwards" });
     }
@@ -259,7 +292,10 @@ export function ChoiceField<K extends string>({ label, value, options, onChange,
         classNames={{ label: "choice-label", trigger: "choice-trigger", popoverContent: `choice-popover ${tag}`, listboxWrapper: "choice-list", listbox: "choice-listbox" }}
       >
         {options.map(([key, text]) => (
-          <SelectItem key={key}>{text}</SelectItem>
+          // Picking what is already picked changes nothing, so nothing closed the list: it folds back all the same
+          <SelectItem key={key} onClick={() => key === value && shut()}>
+            {text}
+          </SelectItem>
         ))}
       </Select>
     </div>

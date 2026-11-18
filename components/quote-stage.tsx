@@ -83,6 +83,14 @@ export function QuoteStage({ initial }: { initial: Quote | null }) {
     picked.current = true;
     preloadPick();
     const show = () => document.documentElement.classList.remove("pick-pending");
+    // Come back to the page scrolled down past it (from a quote opened in the latest quotes' hand, say), the stage is
+    // off the screen, and spoken long before the reader is back up there: it is shown as it ends. Spoken there unseen,
+    // its frames held a phone's main thread for the whole of the move that brought the page back
+    const box = root.getBoundingClientRect();
+    if (box.bottom <= 0 || box.top >= innerHeight) {
+      show();
+      return;
+    }
     void Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 800))])
       // The mask lifts only once every character holds its starting state, so the sentence never shows whole first
       .then(() => pickType(root, { onReady: show }))
@@ -130,7 +138,18 @@ export function QuoteStage({ initial }: { initial: Quote | null }) {
     <div className="stage-toolbar" role="toolbar" aria-label="這句說說" data-morph-origin>
       {/* Never disabled: that would throw keyboard focus away on every draw. Each press turns the colours further round */}
       <span className="draw-wrap" data-magnet data-flare={spins ? spins % 2 : undefined} style={{ "--spin": `${spins * 200}deg` } as CSSProperties}>
-        <Button radius="full" className="toolbar-draw" startContent={<Shuffle aria-hidden="true" size={18} />} onPress={draw}>
+        <Button
+          radius="full"
+          className="toolbar-draw"
+          startContent={
+            <span className="draw-icon">
+              <Shuffle aria-hidden="true" size={18} />
+            </span>
+          }
+          onPress={draw}
+        >
+          {/* The button's colours, on a layer the phone's dock can slide out from under the button's round clip */}
+          <span className="draw-face" aria-hidden="true" />
           <span className="toolbar-draw-label">換一句</span>
           <span className="draw-sheen" aria-hidden="true" />
         </Button>

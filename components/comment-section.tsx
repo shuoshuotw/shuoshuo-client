@@ -5,13 +5,14 @@ import { Check, CircleX, Flag, LogIn, MessageCircle, Pencil, Pin, PinOff, Send, 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { api } from "@/lib/api/browser";
 import { type Comment, failureMessage } from "@/lib/api/client";
 import { countChars, formatTime, withinMinutes } from "@/lib/format";
 import { suspensionText } from "@/lib/labels";
 import { notify } from "@/lib/toast";
 import { usePagedList } from "@/lib/use-paged-list";
-import { arrive, collapse, type Origin, resize, rowTops, textOrigin } from "@/motion/comment-arrive";
+import { arrive, collapse, type Origin, resize, rowTops, settle, textOrigin } from "@/motion/comment-arrive";
 import { useSessionStore } from "@/stores/session";
 import { Avatar } from "./avatar";
 import { ConfirmButton } from "./confirm-button";
@@ -22,7 +23,8 @@ import { Notice } from "./notice";
 import { VerifiedMark } from "./verified";
 import { ReportButton } from "./report-button";
 import { Reveal } from "./reveal";
-import { RetryNote, StateNote } from "./state-note";
+import { RetryNote } from "./retry-note";
+import { StateNote } from "./state-note";
 
 const COMMENT_EDIT_MINUTES = 20;
 
@@ -51,6 +53,29 @@ export function CommentSection({ quoteId, ownerId, dialog = false }: Props) {
     arrival.current = null;
     arrive(row, coming.from, coming.before);
   }, [items]);
+
+  // The comment whose pin was just set, so its badge eases in
+  const [freshPin, setFreshPin] = useState<string | null>(null);
+
+  // A pin lands at once: the list is put in the order Core keeps (the pinned one first, the rest newest first) without
+  // loading it again, and the rows slide from where they stood to where they stand now
+  const pinned = (id: string, pinnedAt: string | null) => {
+    const before = rowTops(list.current);
+    flushSync(() => {
+      setFreshPin(pinnedAt ? id : null);
+      setItems((current) => {
+        // One pin to a quote: pinning one lets go of the other
+        const next = current.map((item) => (item.id === id ? { ...item, pinned_at: pinnedAt } : pinnedAt ? { ...item, pinned_at: null } : item));
+        const rest = next.filter((item) => !item.pinned_at).sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+        return [...next.filter((item) => item.pinned_at), ...rest];
+      });
+    });
+    settle(list.current, before);
+    if (pinnedAt) {
+      const scroller = list.current?.closest<HTMLElement>(".comment-scroll");
+      scroller?.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const posted = (comment: Comment, from: Origin | null) => {
     // The new comment goes in at the top of the list, so the list is taken back up to show it arrive
@@ -91,7 +116,9 @@ export function CommentSection({ quoteId, ownerId, dialog = false }: Props) {
                 ownerId={ownerId}
                 onChange={(next) => setItems((current) => current.map((item) => (item.id === next.id ? next : item)))}
                 onRemove={() => setItems((current) => current.filter((item) => item.id !== comment.id))}
-                onPinned={() => void reload()}
+                onPinned={(pinnedAt) => pinned(comment.id, pinnedAt)}
+                freshPin={freshPin === comment.id}
+                travels={!dialog}
               />
             ))}
           </ul>
@@ -239,10 +266,13 @@ type ItemProps = {
   ownerId: string | null;
   onChange: (comment: Comment) => void;
   onRemove: () => void;
-  onPinned: () => void;
+  onPinned: (pinnedAt: string | null) => void;
+  freshPin: boolean;
+  /** On the page (not in the dialog, which closes first) the name and picture travel into the profile (profile-morph.ts) */
+  travels: boolean;
 };
 
-function CommentItem({ comment, ownerId, onChange, onRemove, onPinned }: ItemProps) {
+function CommentItem({ comment, ownerId, onChange, onRemove, onPinned, freshPin, travels }: ItemProps) {
   const me = useSessionStore((state) => state.me);
   const [editing, setEditing] = useState(false);
   const mine = me?.id === comment.user.id;
@@ -259,13 +289,16 @@ function CommentItem({ comment, ownerId, onChange, onRemove, onPinned }: ItemPro
     if (before) resize(element, before);
   }, [editing, comment.content]);
 
+  // What Core answered, kept until the dialog is back in its button: only then does the row move
+  const pin = useRef<{ pinned_at: string | null } | null>(null);
   const togglePin = async () => {
-    try {
-      await api(`/v1/comments/${comment.id}/pin`, { method: comment.pinned_at ? "DELETE" : "PUT" });
-      onPinned();
-    } catch (failure) {
-      void notify(failureMessage(failure), "failed");
-    }
+    pin.current = await api<{ pinned_at: string | null }>(`/v1/comments/${comment.id}/pin`, { method: comment.pinned_at ? "DELETE" : "PUT" });
+  };
+  const applyPin = () => {
+    if (!pin.current) return;
+    onPinned(pin.current.pinned_at);
+    void notify(pin.current.pinned_at ? "已置頂留言" : "已取消置頂");
+    pin.current = null;
   };
 
   const remove = async () => {
@@ -285,7 +318,7 @@ function CommentItem({ comment, ownerId, onChange, onRemove, onPinned }: ItemPro
       <div className="comment-body">
         <p className="comment-head">
           <span className="verified-name">
-            <Link className="text-link" href={`/u/${encodeURIComponent(comment.user.username)}`}>
+            <Link className="text-link" href={`/u/${encodeURIComponent(comment.user.username)}`} data-profile={travels || undefined}>
               {comment.user.username}
             </Link>
             {comment.user.verified && <VerifiedMark />}
@@ -293,7 +326,7 @@ function CommentItem({ comment, ownerId, onChange, onRemove, onPinned }: ItemPro
           <time dateTime={comment.created_at}>{formatTime(comment.created_at)}</time>
           {comment.edited_at && <span>已編輯</span>}
           {comment.pinned_at && (
-            <span className="comment-pin">
+            <span className="comment-pin" data-enter={freshPin || undefined}>
               <Pin aria-hidden="true" />
               已置頂
             </span>
@@ -307,7 +340,7 @@ function CommentItem({ comment, ownerId, onChange, onRemove, onPinned }: ItemPro
         {!editing && me && (
           <div className="comment-actions">
             {mine && withinMinutes(comment.created_at, COMMENT_EDIT_MINUTES) && (
-              <button type="button" className="text-button" onClick={() => setEditing(true)}>
+              <button type="button" className="text-button" data-magnet onClick={() => setEditing(true)}>
                 <Pencil aria-hidden="true" />
                 編輯
               </button>
@@ -323,18 +356,31 @@ function CommentItem({ comment, ownerId, onChange, onRemove, onPinned }: ItemPro
                 title="刪除這則留言？"
                 confirm="確定刪除"
                 tone="question"
+                magnet
                 onConfirm={remove}
                 onClosed={leave}
               />
             )}
             {me.id === ownerId && (
-              <button type="button" className="text-button" onClick={() => void togglePin()}>
-                {comment.pinned_at ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
-                {comment.pinned_at ? "取消置頂" : "置頂"}
-              </button>
+              <ConfirmButton
+                label={
+                  <>
+                    {comment.pinned_at ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
+                    {comment.pinned_at ? "取消置頂" : "置頂"}
+                  </>
+                }
+                labelKey={comment.pinned_at ? "unpin" : "pin"}
+                title={comment.pinned_at ? "取消置頂這則留言？" : "置頂這則留言？"}
+                confirm={comment.pinned_at ? "取消置頂" : "置頂"}
+                tone="question"
+                plain
+                magnet
+                onConfirm={togglePin}
+                onClosed={applyPin}
+              />
             )}
             {!mine && (
-              <ReportButton path={`/v1/comments/${comment.id}/reports`} title="檢舉這則留言">
+              <ReportButton path={`/v1/comments/${comment.id}/reports`} title="檢舉這則留言" magnet>
                 <Flag aria-hidden="true" />
                 檢舉
               </ReportButton>

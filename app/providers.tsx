@@ -3,8 +3,9 @@
 import { HeroUIProvider } from "@heroui/system";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import { useMotionReduced, useMotionSync } from "@/lib/motion-pref";
+import { installRipples } from "@/motion/ripple";
 
 // Toast pulls framer-motion's full bundle; loading it lazily keeps the home page in budget (M0 #11)
 const ToastProvider = dynamic(
@@ -28,9 +29,11 @@ export function Providers({ children }: { children: ReactNode }) {
   const wide = useSyncExternalStore(subscribe, () => matchMedia(WIDE).matches, () => true);
   const reduced = useMotionReduced();
   useMotionSync();
+  useEffect(() => installRipples(), []);
   return (
-    // zh-TW: the date pickers read their fields as 年／月／日
-    <HeroUIProvider navigate={router.push} locale="zh-TW" reducedMotion={reduced ? "always" : "user"}>
+    // zh-TW: the date pickers read their fields as 年／月／日. HeroUI's ripple is off: ours is the same picture run by
+    // the browser's animations instead of a JavaScript loop (motion/ripple.ts)
+    <HeroUIProvider navigate={router.push} locale="zh-TW" reducedMotion={reduced ? "always" : "user"} disableRipple>
       <ToastProvider
         placement={wide ? "bottom-right" : "top-center"}
         toastOffset={wide ? 24 : 12}

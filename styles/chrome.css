@@ -78,11 +78,7 @@ body {
   }
 }
 
-/* They fade into the gradient's own colours under every page, not into a band of flat ground */
-.app-scroll {
-  --veil: color-mix(in oklab, var(--mesh-2) 60%, var(--mesh-4));
-}
-
+/* They fade into the backdrop's own colours at each edge, not into a band of flat ground */
 .app-scroll::before {
   top: 0;
   background: linear-gradient(var(--veil) 20%, transparent);
@@ -236,10 +232,13 @@ body {
   display: none;
 }
 
+/* max-width: the reset caps every image at its box's width, which lets a row squeeze a picture into an oval when the
+   words beside it run long (a wrapper around it is what the row lays out, so flex: none on the picture is not enough) */
 .avatar {
   display: inline-grid;
   place-items: center;
   flex: none;
+  max-width: none;
   border-radius: var(--radius-full);
   object-fit: cover;
 }
@@ -867,6 +866,14 @@ body {
   border-radius: var(--radius-control);
 }
 
+/* What was tapped to open a quote or a profile gives a little, at once (motion/quote-morph.ts press): the page stands
+   still while the next one is made ready, and this is what it stands still showing */
+[data-pressing] {
+  scale: 0.985;
+  opacity: 0.82;
+  transition: none !important;
+}
+
 /* ---------- the phone's dock ---------- */
 
 .dock {
@@ -889,28 +896,219 @@ body {
   --morph-blur: 2px;
 }
 
-/* Closed: a small circular button. Open: a rounded panel. Width/height/border-radius animate; the open state uses a
-   bouncier ease than the close */
-.t-morph {
-  position: relative;
+/* ---------- morph box: a rounded box that takes any size without being laid out ---------- */
+
+/* A box whose width and height change is laid out again on every frame, by the main thread; one stretched by a scale
+   has its round corners go oval. So the dock's boxes that grow (the menu out of its button, the categories' bar into
+   its panel) are drawn in pieces that only move, which a phone's compositor runs by itself (motion/morph-box.ts):
+   the line as two bands crossing and a circle in each corner, the inside as four clips one in another, each rounding
+   one corner of the shape, and the shadows under them */
+.mbox {
+  position: absolute;
+  pointer-events: none;
+}
+
+.mbox-shade {
+  position: absolute;
+  inset: 0;
+  border-radius: 28px;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
+
+.mbox-shade[data-shade="low"] {
+  top: auto;
+  height: 56px;
+  box-shadow: var(--shadow-soft);
+}
+
+.mbox-shade[data-shade="high"] {
+  box-shadow: var(--shadow-lift);
+  opacity: 0;
+}
+
+.mbox-line {
+  position: absolute;
+  inset: 0;
+}
+
+/* Opaque (the line over the surface), so where the pieces overlap nothing shows darker */
+.mbox-line > span {
+  position: absolute;
+  background: linear-gradient(var(--line), var(--line)), var(--surface);
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.mbox-line > [data-part="across"] {
+  inset: 28px 0;
+}
+
+.mbox-line > [data-part="down"] {
+  inset: 0 28px;
+}
+
+.mbox-line > :is([data-part="tl"], [data-part="tr"], [data-part="bl"], [data-part="br"]) {
   width: 56px;
   height: 56px;
-  border-radius: var(--morph-r-closed);
+  border-radius: 50%;
+}
+
+.mbox-line > [data-part="tl"] {
+  top: 0;
+  left: 0;
+}
+
+.mbox-line > [data-part="tr"] {
+  top: 0;
+  right: 0;
+}
+
+.mbox-line > [data-part="bl"] {
+  bottom: 0;
+  left: 0;
+}
+
+.mbox-line > [data-part="br"] {
+  right: 0;
+  bottom: 0;
+}
+
+.mbox-clip {
+  position: absolute;
   overflow: hidden;
-  transition:
-    width var(--morph-close-dur) var(--morph-close-ease),
-    height var(--morph-close-dur) var(--morph-close-ease),
-    border-radius var(--morph-close-dur) var(--morph-close-ease);
+  border-radius: 27px;
+  will-change: transform;
+}
+
+/* Closed: a small circular button. Open: a rounded panel, on a bouncier ease than the close, the menu clipped by the
+   box as it grows: the skill's move as it is, but its width, height and radius, which were laid out and painted on
+   every frame, are a morph box's pieces here. The box is 300 x 420 from the start and shows the button's circle in
+   its bottom left corner while shut: every number below is that 244 x 364 difference. Shut, the box lets every touch
+   through but the button's */
+.t-morph {
+  position: relative;
+  isolation: isolate;
+  width: 300px;
+  height: 420px;
+  pointer-events: none;
 }
 
 .t-morph[data-open="true"] {
+  pointer-events: auto;
+}
+
+.t-morph :is(.mbox-line > span, .mbox-clip, .t-morph-shade) {
+  transition:
+    transform var(--morph-close-dur) var(--morph-close-ease),
+    opacity 120ms linear;
+}
+
+.t-morph[data-open="true"] :is(.mbox-line > span, .mbox-clip, .t-morph-shade) {
+  transition:
+    transform var(--morph-open-dur) var(--morph-ease),
+    opacity 80ms linear;
+}
+
+/* The line: its bands down to nothing and its corners together, which is the circle */
+.t-morph .mbox-line > [data-part="across"] {
+  transform: translate(0, 364px) scale(0.186667, 0);
+}
+
+.t-morph .mbox-line > [data-part="down"] {
+  transform: translate(0, 364px) scale(0, 0.133333);
+}
+
+.t-morph .mbox-line > [data-part="tl"] {
+  transform: translate(0, 364px);
+}
+
+.t-morph .mbox-line > [data-part="tr"] {
+  transform: translate(-244px, 364px);
+}
+
+.t-morph .mbox-line > [data-part="br"] {
+  transform: translate(-244px, 0);
+}
+
+.t-morph[data-open="true"] .mbox-line > [data-part="across"],
+.t-morph[data-open="true"] .mbox-line > [data-part="down"] {
+  transform: translate(0, 0) scale(1, 1);
+}
+
+.t-morph[data-open="true"] .mbox-line > :is([data-part="tl"], [data-part="tr"], [data-part="br"]) {
+  transform: translate(0, 0);
+}
+
+/* The inside: each clip is the box's inside and 64px more on the two sides away from the corner it rounds, so the
+   open ease's overshoot is not cut off. The innermost keeps the bottom left corner, which never moves, so the menu
+   in it stands still while the other three close over it */
+.t-morph .mbox-clip {
+  width: 362px;
+  height: 482px;
+}
+
+.t-morph .mbox-clip[data-corner="tl"] {
+  top: 1px;
+  left: 1px;
+  transform: translate(0, 364px);
+}
+
+.t-morph .mbox-clip[data-corner="tr"] {
+  top: 0;
+  left: -64px;
+  transform: translate(-244px, 0);
+}
+
+.t-morph .mbox-clip[data-corner="br"] {
+  top: -64px;
+  left: 0;
+  transform: translate(0, -364px);
+}
+
+.t-morph .mbox-clip[data-corner="bl"] {
+  top: 0;
+  left: 64px;
+  background: var(--surface);
+  transform: translate(244px, 0);
+}
+
+.t-morph[data-open="true"] .mbox-clip {
+  transform: translate(0, 0);
+}
+
+/* The button's soft shadow, and the open panel's, which takes its place at once as the box's did */
+.t-morph-shade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  will-change: transform, opacity;
+}
+
+.t-morph-shade[data-shade="low"] {
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  box-shadow: var(--shadow-soft);
+}
+
+.t-morph-shade[data-shade="high"] {
   width: 300px;
   height: 420px;
-  border-radius: var(--morph-r-open);
-  transition:
-    width var(--morph-open-dur) var(--morph-ease),
-    height var(--morph-open-dur) var(--morph-ease),
-    border-radius var(--morph-open-dur) var(--morph-ease);
+  border-radius: 28px;
+  box-shadow: var(--shadow-lift);
+  opacity: 0;
+  transform: scale(0.186667, 0.133333);
+  transform-origin: 0 100%;
+}
+
+.t-morph[data-open="true"] .t-morph-shade[data-shade="low"] {
+  opacity: 0;
+}
+
+.t-morph[data-open="true"] .t-morph-shade[data-shade="high"] {
+  opacity: 1;
+  transform: scale(1, 1);
 }
 
 /* The button stays pinned to the corner the panel grows from (bottom left here, so the skill's right-hand slide is
@@ -921,12 +1119,21 @@ body {
   width: 56px;
   min-width: 56px;
   height: 56px;
+  pointer-events: auto;
 }
 
-.t-morph-plus .icon-swap > * {
+/* The bars turn into the cross. Each icon is in a box of its own, which the compositor can turn (an svg it cannot), and
+   they swap without the skill's 2px blur, which is painted again on every frame: either kept the main thread drawing
+   a frame for each of the screen's while the menu opened */
+.t-morph-plus .icon-swap > span {
+  display: grid;
+  will-change: transform, opacity;
+}
+
+.dock .t-morph-plus .icon-swap[data-swapped] > * {
+  filter: none;
   transition:
     opacity var(--morph-fade-dur) var(--morph-close-ease),
-    filter var(--morph-fade-dur) var(--morph-close-ease),
     transform var(--morph-open-dur) var(--morph-ease);
 }
 
@@ -942,42 +1149,50 @@ body {
   transform: none;
 }
 
-/* Menu starts slid in + scaled + blurred; reveals on open. Laid out at the open size from the start and clipped by the
-   growing box, so nothing rewraps while it grows */
+/* Menu starts slid in + scaled; reveals on open. Laid out at the open size from the start and clipped by the growing
+   box, so nothing rewraps while it grows. It comes in on the box's own bounce, so the two move as one thing (on a
+   plainer ease the box sprang and what it held did not), and without the skill's blur: a filter on a sheet this size
+   is drawn again on every frame, which a phone has no time for. On a layer of its own from the start, so opening it
+   draws nothing new */
 .t-morph-menu {
   position: absolute;
-  inset: auto auto 0 0;
+  top: 63px;
+  left: -1px;
   width: 300px;
   height: 420px;
   opacity: 0;
   transform: translateX(calc(-1 * var(--morph-slide))) scale(var(--morph-scale));
   transform-origin: 0 100%;
-  filter: blur(var(--morph-blur));
   pointer-events: none;
+  will-change: transform, opacity;
   transition:
     opacity var(--morph-fade-dur) var(--morph-close-ease),
-    transform var(--morph-open-dur) var(--morph-close-ease),
-    filter var(--morph-fade-dur) var(--morph-close-ease);
+    transform var(--morph-close-dur) var(--morph-close-ease);
 }
 
 .t-morph[data-open="true"] .t-morph-menu {
   opacity: 1;
   transform: translateX(0) scale(1);
-  filter: blur(0);
   pointer-events: auto;
+  transition:
+    opacity var(--morph-fade-dur) var(--morph-close-ease),
+    transform var(--morph-open-dur) var(--morph-ease);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .t-morph,
+  .t-morph :is(.mbox-line > span, .mbox-clip, .t-morph-shade),
   .t-morph-plus,
   .t-morph-menu,
-  .t-morph-plus .icon-swap > * {
+  .dock .t-morph-plus .icon-swap[data-swapped] > * {
     transition: none !important;
   }
 }
 
 /* The same for 減少動畫 on this device (lib/motion-pref.ts) */
 :root[data-motion="reduce"] .t-morph,
+:root[data-motion="reduce"] .t-morph :is(.mbox-line > span, .mbox-clip, .t-morph-shade),
+:root[data-motion="reduce"] .dock .t-morph-plus .icon-swap[data-swapped] > *,
 :root[data-motion="reduce"] .t-morph-plus,
 :root[data-motion="reduce"] .t-morph-menu,
 :root[data-motion="reduce"] .t-morph-plus .icon-swap > * {
@@ -1034,6 +1249,76 @@ body {
   height: 56px;
   margin: 0 -8px;
   padding-right: 8px;
+}
+
+/* What the menu holds comes up out of the corner it grows from, the nearest row first, each on a spring like the box's.
+   Closing, they are simply gone, and wait out of sight for the next opening */
+.dock-sheet > :is(.dock-sheet-head, .dock-menu-legal, .dock-sheet-foot),
+.dock-menu-list > li {
+  opacity: 0;
+  translate: -12px 10px;
+  /* Layers of their own from the start: made at the tap, each came up a frame or two after the panel */
+  will-change: translate, opacity;
+  /* A real move back, short as the fade, not a jump after a wait: the compositor cannot run a jump, so the main thread
+     had to keep drawing frames until it came */
+  transition:
+    opacity 100ms var(--ease-out),
+    translate 100ms var(--ease-out);
+}
+
+.t-morph[data-open="true"] .dock-sheet > :is(.dock-sheet-head, .dock-menu-legal, .dock-sheet-foot),
+.t-morph[data-open="true"] .dock-menu-list > li {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity 220ms var(--ease-out) var(--rise, 0ms),
+    translate 520ms var(--ease-spring) var(--rise, 0ms);
+}
+
+.dock-sheet-foot {
+  --rise: 30ms;
+}
+
+.dock-menu-legal {
+  --rise: 58ms;
+}
+
+.dock-menu-list > li:nth-last-child(1) {
+  --rise: 86ms;
+}
+
+.dock-menu-list > li:nth-last-child(2) {
+  --rise: 114ms;
+}
+
+.dock-menu-list > li:nth-last-child(3) {
+  --rise: 142ms;
+}
+
+.dock-menu-list > li:nth-last-child(4) {
+  --rise: 170ms;
+}
+
+.dock-menu-list > li:nth-last-child(n + 5) {
+  --rise: 198ms;
+}
+
+.dock-sheet-head {
+  --rise: 226ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-sheet > :is(.dock-sheet-head, .dock-menu-legal, .dock-sheet-foot),
+  .dock-menu-list > li {
+    translate: none;
+    transition: none !important;
+  }
+}
+
+:root[data-motion="reduce"] .dock-sheet > :is(.dock-sheet-head, .dock-menu-legal, .dock-sheet-foot),
+:root[data-motion="reduce"] .dock-menu-list > li {
+  translate: none;
+  transition: none !important;
 }
 
 @media (min-width: 768px) {
@@ -1103,14 +1388,15 @@ body {
     bottom: 0;
   }
 
-  /* A page's bar in the slot takes the dock's own face, whatever its own stylesheet gives it elsewhere */
+  /* A page's bar in the slot takes the dock's own face, whatever its own stylesheet gives it elsewhere: the surface
+     itself, not glass, since a blur behind bars this busy was more than a phone could redraw as they moved. The pages'
+     bar wears it on layers behind its tabs (below) */
   .dock-round,
-  .dock-tabs,
   .dock .dock-slot > * {
     border: 1px solid var(--line);
-    background: var(--glass);
+    background: var(--surface);
     box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(12px);
+    backdrop-filter: none;
   }
 
   .dock-round {
@@ -1120,13 +1406,22 @@ body {
     color: var(--ink);
   }
 
-  @media (pointer: coarse) {
-    .dock-round,
-    .dock-tabs,
-    .dock .dock-slot > * {
-      background: color-mix(in oklab, var(--surface) 94%, transparent);
-      backdrop-filter: none;
-    }
+  /* The pages' bar's shadow, on a box of its own: the bar clips what it holds (below), and its shadow with it */
+  .dock::before {
+    content: "";
+    position: absolute;
+    right: 64px;
+    bottom: 0;
+    left: 0;
+    height: 56px;
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-soft);
+    transition: opacity 220ms var(--ease-out) 240ms;
+  }
+
+  .dock[data-fold="true"]::before {
+    opacity: 0;
+    transition: opacity 120ms var(--ease-out);
   }
 
   .dock-account {
@@ -1164,16 +1459,47 @@ body {
     }
   }
 
-  /* The pages: a bar that folds into the round menu button when the page scrolls down */
+  /* The pages: a bar that folds into the round menu button when the page scrolls down. The bar itself never changes
+     size, and neither does anything in it: its face is a pill as wide as the bar that slides out to the left under the
+     bar's own round clip, so what is left in sight is a pill with both ends round, down to the button's circle, and
+     the compositor moves it alone. (A box cannot be narrowed without laying it out on every frame, and stretched
+     instead its round ends go oval.) The face is two such pills, the line's colour and the surface a pixel inside it,
+     which is the bar's border. Folding is quick and plain, the tabs gone first; opening out is the spring, the tabs
+     coming back one after another once there is room for them */
   .dock-tabs {
     right: 64px;
     left: 0;
+    isolation: isolate;
     display: flex;
     height: 56px;
     padding: 4px;
     overflow: hidden;
     border-radius: var(--radius-full);
-    transition: right 540ms var(--ease-spring);
+  }
+
+  .dock-tabs-face {
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    overflow: hidden;
+    border-radius: inherit;
+  }
+
+  /* Longer than the bar to the left, so the spring carrying it a little past its place uncovers nothing there */
+  .dock-tabs::before,
+  .dock-tabs-face::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 0 -48px;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(var(--line), var(--line)), var(--surface);
+    will-change: transform;
+    transition: transform 560ms var(--ease-spring);
+  }
+
+  .dock-tabs-face::before {
+    background: var(--surface);
   }
 
   .dock-tab {
@@ -1186,9 +1512,21 @@ body {
     color: var(--muted);
     font-size: 11px;
     transition:
-      opacity 220ms var(--ease-out) 120ms,
-      transform 420ms var(--ease-spring) 80ms,
+      opacity 200ms var(--ease-out) calc(140ms + var(--nth, 0) * 36ms),
+      transform 460ms var(--ease-spring) calc(120ms + var(--nth, 0) * 36ms),
       background-color var(--duration-quick) var(--ease-out);
+  }
+
+  .dock-tab:nth-of-type(2) {
+    --nth: 1;
+  }
+
+  .dock-tab:nth-of-type(3) {
+    --nth: 2;
+  }
+
+  .dock-tab:nth-of-type(4) {
+    --nth: 3;
   }
 
   .dock-tab[data-active="true"] {
@@ -1200,15 +1538,15 @@ body {
   .dock-tabs .nav-pill {
     top: 4px;
     bottom: 4px;
-    left: calc(4px + (100% - 8px) / 4 * var(--i, 0));
+    left: 4px;
     width: calc((100% - 8px) / 4);
-    transform: none;
+    transform: translateX(calc(100% * var(--i, 0)));
     transition:
-      left var(--duration-fast) var(--ease-smooth-out),
+      transform var(--duration-fast) var(--ease-smooth-out),
       opacity var(--duration-quick) var(--ease-in-out);
   }
 
-  .dock[data-compact="true"] .dock-tabs .nav-pill {
+  .dock[data-fold="true"] .dock-tabs .nav-pill {
     opacity: 0;
   }
 
@@ -1244,9 +1582,32 @@ body {
     box-shadow: none;
   }
 
+  /* In the dock the current tab is the dock's own: the action's colour under it, as on the personal centre's bar */
   .dock-slot .route-tabs .nav-pill {
     top: 0;
     bottom: 0;
+    overflow: hidden;
+    background: none;
+    box-shadow: none;
+  }
+
+  /* Its colour on a layer of its own, which slides out under the pill's round clip when the dock folds and the tab
+     loses its name (motion/dock-fold.ts), as the pages' bar's face does */
+  .dock-slot .route-tabs .nav-pill::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--action);
+  }
+
+  /* While the dock folds or opens out the pill is carried with its tab, and takes its new place at once */
+  .dock:is([data-flying], [data-landed]) .dock-slot .nav-pill {
+    transition: none;
+  }
+
+  .dock-slot .route-tabs a[aria-current="page"] {
+    color: var(--action-ink);
   }
 
   .dock-slot .route-tabs a {
@@ -1262,10 +1623,6 @@ body {
     margin-left: 6px;
     overflow: hidden;
     white-space: nowrap;
-    transition:
-      max-width 460ms var(--ease-spring),
-      margin-left 460ms var(--ease-spring),
-      opacity 220ms var(--ease-out);
   }
 
   .dock[data-compact="true"] .dock-slot .route-tab-label {
@@ -1317,78 +1674,78 @@ body {
     clip-path: inset(50%);
   }
 
-  .dock[data-compact="true"] .dock-tabs {
-    right: calc(100% - 56px);
+  .dock[data-fold="true"] .dock-tabs::before {
+    transform: translateX(calc(104px - 100%));
+    transition: transform 320ms var(--ease-smooth-out) 50ms;
   }
 
-  .dock[data-compact="true"] .dock-tab {
+  .dock[data-fold="true"] .dock-tabs-face::before {
+    transform: translateX(calc(102px - 100%));
+    transition: transform 320ms var(--ease-smooth-out) 50ms;
+  }
+
+  .dock[data-fold="true"] .dock-tab {
     opacity: 0;
-    transform: scale(0.7);
-    transition-delay: 0ms;
+    transform: translateX(-10px) scale(0.92);
+    transition:
+      opacity 90ms var(--ease-out),
+      transform 100ms var(--ease-out);
   }
 
-  /* The bar's last circle: once the bar has folded, the menu button comes up in its place, ready to open out */
+  /* The bar's last circle: once the bar has folded, the menu button comes up in its place, ready to open out. It
+     grows about the circle's own middle, the box around it being the open menu's size. Out of sight it is only
+     transparent, never hidden, and stays on its layers (will-change): hidden, the whole menu was drawn afresh each time
+     the dock folded and thrown away each time it opened out, a pause in the middle of both. It is inert meanwhile
+     (MobileDock), and its button takes no touch */
   .dock-morph {
     left: 0;
     z-index: 2;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    box-shadow: var(--shadow-soft);
     opacity: 0;
     scale: 0.5;
-    visibility: hidden;
+    transform-origin: 28px calc(100% - 28px);
+    will-change: opacity, scale;
     transition:
-      width var(--morph-close-dur) var(--morph-close-ease),
-      height var(--morph-close-dur) var(--morph-close-ease),
-      border-radius var(--morph-close-dur) var(--morph-close-ease),
       opacity 160ms var(--ease-out),
-      scale 300ms var(--ease-out),
-      visibility 0s linear 300ms;
+      scale 300ms var(--ease-out);
   }
 
-  .dock[data-compact="true"] .dock-morph {
+  .dock[data-fold="false"] .dock-morph .t-morph-plus {
+    pointer-events: none;
+  }
+
+  .dock[data-fold="true"] .dock-morph {
     opacity: 1;
     scale: 1;
-    visibility: visible;
     transition:
-      width var(--morph-close-dur) var(--morph-close-ease),
-      height var(--morph-close-dur) var(--morph-close-ease),
-      border-radius var(--morph-close-dur) var(--morph-close-ease),
       opacity 240ms var(--ease-out) 200ms,
-      scale 480ms var(--ease-spring) 160ms,
-      visibility 0s;
+      scale 480ms var(--ease-spring) 160ms;
   }
 
-  .dock[data-compact="true"] .dock-morph[data-open="true"] {
-    box-shadow: var(--shadow-lift);
+  .dock[data-fold="true"] .dock-morph[data-open="true"] {
     transition:
-      width var(--morph-open-dur) var(--morph-ease),
-      height var(--morph-open-dur) var(--morph-ease),
-      border-radius var(--morph-open-dur) var(--morph-ease),
       opacity 240ms var(--ease-out),
-      scale 480ms var(--ease-spring),
-      visibility 0s;
+      scale 480ms var(--ease-spring);
   }
 
   .dock-menu {
     color: var(--ink);
   }
 
-  /* On the home page the quote's toolbar rides above the bar, then comes down into the room the bar leaves. The drop
-     is a translate, so only its narrowing touches layout */
+  /* On the home page the quote's toolbar rides above the bar, then comes down into the room the bar leaves. Nothing
+     here has a transition: the slot and what it holds are in one layout or the other, and motion/dock-fold.ts carries
+     every piece between its two places by a transform, which a phone's compositor runs alone. (Narrowing the slot, the
+     gaps and the labels themselves laid the bar out again on every frame.) */
+  /* Over the pages' bar (under the menu): rising out of the row as the bar opens out under it, the toolbar was hidden
+     behind the bar's face growing across the row, and showed again only once it had risen clear */
   .dock-slot {
     right: 0;
     left: 0;
+    z-index: 1;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     contain: layout;
     translate: 0 -64px;
-    will-change: translate;
-    transition:
-      left 540ms var(--ease-spring),
-      right 540ms var(--ease-spring),
-      translate 540ms var(--ease-spring);
   }
 
   .dock-slot:empty {
@@ -1404,25 +1761,86 @@ body {
     height: 56px;
     padding: 5px;
     border-radius: var(--radius-full);
-    transition: gap 460ms var(--ease-spring);
   }
 
-  /* Folding into the bar, the labels and counts narrow away instead of vanishing, so every control slides into place */
+  /* The bar's face while it folds or opens out: two pills as wide as the dock, the line's colour and the surface a
+     pixel inside it, each clipped by a round box of its own size. The box is moved to the bar's left end and the pill
+     to its right, so what is left of the pill is the bar, both ends round, at any width. The bar itself shows no face
+     of its own meanwhile */
+  /* With the slot over the pages' bar, and under what the slot holds */
+  .dock-face {
+    right: 0;
+    left: 0;
+    z-index: 1;
+    height: 56px;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .dock[data-folding] .dock-face {
+    visibility: visible;
+  }
+
+  .dock-face > span {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 56px;
+    overflow: hidden;
+    border-radius: 28px;
+  }
+
+  .dock-face > span + span {
+    top: 1px;
+    left: 1px;
+    width: calc(100% - 2px);
+    height: 54px;
+  }
+
+  /* Longer than its box to the left, as the pages' bar's face is */
+  .dock-face > span > span {
+    position: absolute;
+    inset: 0 0 0 -48px;
+    border-radius: inherit;
+    background: linear-gradient(var(--line), var(--line)), var(--surface);
+  }
+
+  .dock-face > span + span > span {
+    background: var(--surface);
+  }
+
+  /* Named rather than `> *`: a universal selector here has every element in the dock restyled on each fold */
+  .dock[data-folding] .dock-slot > :is(.stage-toolbar, .detail-actions, .me-dock-bar, .route-dock-bar) {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  /* Every piece the fold moves or fades is on a layer of its own from the start, the bar itself too. Put on one only as
+     the move began, each had to be drawn again first, and a phone showed the bar with pieces missing for the first few
+     frames. (The categories' bar only rides down as a whole; what it shows is its own body's doing) */
+  .dock .dock-slot > :is(.stage-toolbar, .detail-actions, .me-dock-bar, .route-dock-bar, .dock-cases),
+  .dock-slot :is(.draw-wrap, .draw-face, .draw-icon, .nav-pill),
+  .dock-slot :is(button, a):not(:is(.draw-wrap, .dock-cases) *) {
+    will-change: translate;
+  }
+
+  .dock-slot :is(.toolbar-draw-label, .count, .route-tab-label) {
+    will-change: opacity;
+  }
+
+  .dock-face span {
+    will-change: translate;
+  }
+
+  /* Folded, the bar has no room for the labels and the counts */
   .dock-slot :is(.toolbar-draw-label, .count) {
     display: inline-block;
     max-width: 4.5em;
     overflow: hidden;
     white-space: nowrap;
     vertical-align: bottom;
-    transition:
-      max-width 460ms var(--ease-spring),
-      opacity 220ms var(--ease-out);
-  }
-
-  .dock-slot :is(.toolbar-draw, .tool-count) {
-    transition:
-      gap 460ms var(--ease-spring),
-      padding 460ms var(--ease-spring);
   }
 
   /* As wide as its label and a generous margin, not the whole row. On a narrow phone it is the one that gives way, so
@@ -1477,26 +1895,74 @@ body {
     padding-inline: 0;
   }
 
-  /* The categories (TypeCase) in the dock: as wide as what they show, the dock's body springing to each new size */
-  /* Sized by what it holds, never by the slot, which changes width itself while the dock folds and opens out */
+  /* The categories (TypeCase) in the dock. What is seen of them is all in the body, a morph box as big as the panel
+     standing on the slot's middle (.dock-cases-body); the bar itself takes no room, so neither the slot's width nor the
+     dock's layout has any say in it */
   .dock .dock-slot > .dock-cases {
     position: relative;
-    isolation: isolate;
     flex: none;
-    width: max-content;
-    height: auto;
-    padding: 5px;
-    overflow: hidden;
-    border-radius: 28px;
-    transition:
-      background-color var(--duration-fast) var(--ease-out),
-      border-color var(--duration-fast) var(--ease-out);
+    width: 0;
+    height: 56px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  /* Sized to the panel by DockCases, which gives it the shape of whatever is in view. The box it stands in for had a
+     soft shadow at every size */
+  .dock-cases-body {
+    bottom: 0;
+    left: 50%;
+    translate: -50% 0;
+  }
+
+  .dock-cases-body > .mbox-shade[data-shade="high"] {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .dock-cases-body .mbox-clip[data-corner="tl"] {
+    background: var(--surface);
+  }
+
+  /* Folded, the box had no border: its colour ran to the edge */
+  .dock-cases-body > .mbox-line {
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+
+  .dock-cases[data-view="chip"] .mbox-line {
+    opacity: 0;
+  }
+
+  /* What the body holds: the bar, the chip and the panel, each from the body's top left corner (5px in, as the old
+     box's padding had them), which carries them as the body springs. Only the one in view is shown, the moment the
+     view changes */
+  .dock-cases-row,
+  .dock-cases-fold,
+  .dock-cases-panel {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    visibility: hidden;
+  }
+
+  .dock-cases[data-view="row"] .dock-cases-row,
+  .dock-cases[data-view="chip"] .dock-cases-fold,
+  .dock-cases[data-view="panel"] .dock-cases-panel {
+    visibility: visible;
+    pointer-events: auto;
   }
 
   .dock-cases-row {
     display: flex;
     align-items: center;
     gap: 2px;
+    width: max-content;
+  }
+
+  .dock-cases-fold {
+    display: flex;
+    width: max-content;
   }
 
   .dock-cases .case-option {
@@ -1542,6 +2008,11 @@ body {
   .dock-cases-grid .case-option {
     justify-content: flex-start;
     width: 100%;
+  }
+
+  /* The choices rise in one after another each time the panel comes into view. Without the 2px blur they had: a blur
+     is painted again on every frame, by the main thread */
+  .dock-cases[data-view="panel"] .dock-cases-grid .case-option {
     animation: case-rise 380ms var(--ease-smooth-out) both;
     animation-delay: calc(var(--i, 0) * 18ms);
   }
@@ -1549,28 +2020,34 @@ body {
   @keyframes case-rise {
     from {
       opacity: 0;
-      filter: blur(2px);
       translate: 0 8px;
     }
   }
 
-  /* Folded, a chip of the chosen category: its colour flows round it as the draw button's does on the home page */
-  .dock .dock-slot > .dock-cases[data-compact="true"] {
-    border-color: transparent;
+  /* Folded, a chip of the chosen category: the body fills with its colour, which flows round the chip as the draw
+     button's does on the home page. The colour comes in as the old box's background did; the turning iris is centred
+     on where the chip will be, and the light on the chip's edge comes last, once the body has its size */
+  .dock-cases-tint {
+    position: absolute;
+    inset: 0;
+    isolation: isolate;
     background: var(--case-stock);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.5),
-      inset 0 0 0 1px rgb(255 255 255 / 0.25),
-      var(--shadow-soft);
+    opacity: 0;
+    will-change: opacity;
+    transition: opacity var(--duration-fast) var(--ease-out);
   }
 
-  .dock .dock-slot > .dock-cases[data-compact="true"]::before {
+  .dock-cases[data-view="chip"] .dock-cases-tint {
+    opacity: 1;
+  }
+
+  .dock-cases-tint::before {
     content: "";
     position: absolute;
-    top: 50%;
-    left: 50%;
+    top: 27px;
+    left: calc(var(--chip-w, 100px) / 2 - 1px);
     z-index: -1;
-    width: max(170%, 180px);
+    width: max(var(--chip-w, 100px) * 1.7, 180px);
     aspect-ratio: 1;
     background: conic-gradient(
       var(--case-stock),
@@ -1582,15 +2059,39 @@ body {
     filter: blur(8px);
     translate: -50% -50%;
     animation: iris-turn 6s linear infinite;
-    pointer-events: none;
+  }
+
+  /* Still while out of sight */
+  .dock-cases:not([data-view="chip"]) .dock-cases-tint::before {
+    animation-play-state: paused;
+  }
+
+  .dock-cases-tint::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(var(--chip-w, 100px) - 2px);
+    height: 54px;
+    border-radius: 27px;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.5),
+      inset 0 0 0 1px rgb(255 255 255 / 0.25);
+    opacity: 0;
+    transition: opacity 100ms var(--ease-out);
+  }
+
+  .dock-cases[data-view="chip"] .dock-cases-tint::after {
+    opacity: 1;
+    transition: opacity 200ms var(--ease-out) 280ms;
   }
 
   /* 全部 has no colour of its own, so it takes the draw button's iris */
-  .dock .dock-slot > .dock-cases[data-compact="true"][data-all="true"] {
+  .dock-cases[data-all="true"] .dock-cases-tint {
     background: #c7c2e8;
   }
 
-  .dock .dock-slot > .dock-cases[data-compact="true"][data-all="true"]::before {
+  .dock-cases[data-all="true"] .dock-cases-tint::before {
     background: conic-gradient(#a9c3ea, #b9b3e6, #d4bae4, #e8bfd5, #ebcdb9, #e6dcb6, #b8dccb, #a9c3ea);
   }
 
@@ -1631,9 +2132,11 @@ body {
   .dock-morph,
   .dock-tab,
   .dock-tabs,
+  .dock::before,
+  .dock-tabs::before,
+  .dock-tabs-face::before,
   .dock-slot,
   .dock-slot *,
-  .dock-cases-grid .case-option,
   .credit a,
   .footer-columns a,
   .footer-columns a::before,
@@ -1643,7 +2146,8 @@ body {
   }
 
   .dock[data-bump] .dock-account,
-  .dock-cases::before {
+  .dock-cases[data-view] .dock-cases-grid .case-option,
+  .dock-cases-tint::before {
     animation: none;
   }
 
@@ -1661,9 +2165,11 @@ body {
 :root[data-motion="reduce"] .dock-morph,
 :root[data-motion="reduce"] .dock-tab,
 :root[data-motion="reduce"] .dock-tabs,
+:root[data-motion="reduce"] .dock::before,
+:root[data-motion="reduce"] .dock-tabs::before,
+:root[data-motion="reduce"] .dock-tabs-face::before,
 :root[data-motion="reduce"] .dock-slot,
 :root[data-motion="reduce"] .dock-slot *,
-:root[data-motion="reduce"] .dock-cases-grid .case-option,
 :root[data-motion="reduce"] .credit a,
 :root[data-motion="reduce"] .footer-columns a,
 :root[data-motion="reduce"] .footer-columns a::before,
@@ -1673,7 +2179,8 @@ body {
 }
 
 :root[data-motion="reduce"] .dock[data-bump] .dock-account,
-:root[data-motion="reduce"] .dock-cases::before {
+:root[data-motion="reduce"] .dock-cases[data-view] .dock-cases-grid .case-option,
+:root[data-motion="reduce"] .dock-cases-tint::before {
   animation: none;
 }
 

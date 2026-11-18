@@ -1,19 +1,22 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
 // No nonce: it would force dynamic rendering and defeat the CDN (SPEC §11.4, R-16).
 // 'unsafe-inline': Next's inline RSC payload scripts stop hydration otherwise; experimental.sri does not cover them (M0 #6).
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  // Hashes: the <style> React Aria injects for touch-action (recheck when upgrading HeroUI) and the one Paper Shaders
-  // injects for its canvas (recheck when upgrading @paper-design/shaders-react)
-  "style-src 'self' https://font.emtech.cc 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-bcX2M6hOeEgeI9Ttj3KtXWZuoRsKenyQAlXswSnLakA='",
+  // static.cloudflareinsights.com: Cloudflare Web Analytics, whose beacon the CDN adds to every page (it reports to cloudflareinsights.com)
+  `script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com${isDev ? " 'unsafe-eval'" : ""}`,
+  // Hashes: the <style> React Aria injects for touch-action (recheck when upgrading HeroUI)
+  "style-src 'self' https://font.emtech.cc 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='",
   "style-src-attr 'unsafe-inline'",
   "font-src https://font.emtech.cc",
   "img-src 'self' data: https://*.googleusercontent.com https://cdn.discordapp.com https://avatars.githubusercontent.com",
-  `connect-src 'self' ${process.env.NEXT_PUBLIC_API_BASE_URL ?? ""} ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}`,
+  // Realtime's socket is named on its own: Safari does not let an https source stand for wss, and a blocked socket throws there
+  // Core's address with the same fallback as lib/api/client.ts: a build without the variable talks to localhost:5001
+  `connect-src 'self' ${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5001"} ${supabaseUrl} ${supabaseUrl.replace(/^http/, "ws")} https://cloudflareinsights.com`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

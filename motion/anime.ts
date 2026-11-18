@@ -104,24 +104,25 @@ export async function drawCheck(path: SVGPathElement) {
   animate(svg.createDrawable(path), { draw: ["0 0", "0 1"], duration: 500, ease: "inOutSine" });
 }
 
-/** M-09: the first twelve rows only; anything lower is off screen anyway. */
-export async function staggerRows(rows: Element[]) {
+/**
+ * M-09: the first twelve rows only; anything lower is off screen anyway. Run by the browser (Web Animations) on the
+ * compositor rather than by anime.js's script on every frame: a list coming in under a view transition, or as the
+ * dock folded, had the main thread restyling twelve rows on each frame of it.
+ */
+export function staggerRows(rows: Element[]) {
   const first = rows.slice(0, 12);
   if (prefersReduced()) {
     logMotion("M-09", "reduced", "start");
     for (const row of first) row.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150 });
     return;
   }
-  // Hidden before the first await, or the rows flash while anime.js loads
-  for (const row of first) (row as HTMLElement).style.opacity = "0";
   document.documentElement.classList.remove("pick-pending");
-  const { animate, stagger } = await loadAnimate();
   logMotion("M-09", "full", "start");
   // In the personal centre below 1024px the tabs run across, so its pages and their rows come in from the side
   const page = first[0]?.closest<HTMLElement>(".me-main");
-  if (page && matchMedia("(max-width: 1023px)").matches) {
-    animate(first, { x: [page.dataset.enter === "back" ? -16 : 16, 0], opacity: [0, 1], duration: 250, delay: stagger(40), ease: "outExpo" });
-    return;
-  }
-  animate(first, { y: [12, 0], opacity: [0, 1], duration: 250, delay: stagger(40), ease: "outExpo" });
+  const from = page && matchMedia("(max-width: 1023px)").matches ? `${page.dataset.enter === "back" ? -16 : 16}px 0` : "0 12px";
+  first.forEach((row, index) =>
+    // outExpo; `backwards` holds each row hidden until its turn
+    row.animate({ translate: [from, "0 0"], opacity: [0, 1] }, { duration: 250, delay: index * 40, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "backwards" }),
+  );
 }

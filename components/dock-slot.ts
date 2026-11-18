@@ -1,21 +1,26 @@
 "use client";
 
-import { type RefObject, useEffect, useLayoutEffect, useState } from "react";
+import { type RefObject, useLayoutEffect, useSyncExternalStore } from "react";
+
+let phone: MediaQueryList | null = null;
+const phoneQuery = () => (phone ??= matchMedia("(max-width: 767px)"));
 
 /**
  * On a phone a page's bar joins the dock at the bottom of the screen (MobileDock renders the slot): the home page's
- * toolbar, a quote's toolbar, the personal centre's tabs. Elsewhere the bar stays in the page.
+ * toolbar, a quote's toolbar, the personal centre's tabs. Elsewhere the bar stays in the page. A page opened from
+ * another has it from its first render: found only once the page had mounted, the bar was first laid out in the page,
+ * which is what a view transition took its picture of, and the page shifted under it as the bar moved down at the end.
+ * Only the page the server rendered (hydrated) starts without it, as the server did.
  */
 export function useDockSlot() {
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    const phone = matchMedia("(max-width: 767px)");
-    const follow = () => setSlot(phone.matches ? document.getElementById("dock-slot") : null);
-    follow();
-    phone.addEventListener("change", follow);
-    return () => phone.removeEventListener("change", follow);
-  }, []);
-  return slot;
+  return useSyncExternalStore(
+    (change) => {
+      phoneQuery().addEventListener("change", change);
+      return () => phoneQuery().removeEventListener("change", change);
+    },
+    () => (phoneQuery().matches ? document.getElementById("dock-slot") : null),
+    () => null,
+  );
 }
 
 /**

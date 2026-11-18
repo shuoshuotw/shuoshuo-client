@@ -1,5 +1,8 @@
 node_modules/
 .next/
+.codegraph/
+.impeccable/
+PRODUCT.md
 next-env.d.ts
 *.tsbuildinfo
 .env*

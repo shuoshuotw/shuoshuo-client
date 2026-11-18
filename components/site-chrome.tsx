@@ -1,9 +1,9 @@
 import { BookOpen, FileText, Flame, type LucideIcon, PenLine, Quote, Rocket, Shield } from "lucide-react";
 import Link from "next/link";
 import type { ComponentType, ReactNode } from "react";
+import { DOCS_URL } from "@/lib/docs";
 import { GitHubIcon } from "./brand-icons";
 import { Logo } from "./logo";
-import { DOCS_URL } from "./site-header";
 
 /** A page's title with its icon at the title's own size, and an optional line under it. */
 export function PageHead({ icon: Icon, title, children }: { icon: LucideIcon; title: ReactNode; children?: ReactNode }) {

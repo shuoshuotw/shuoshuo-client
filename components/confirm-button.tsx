@@ -22,18 +22,20 @@ type Props = {
   labelKey?: string;
   /** Throwing keeps the dialog open with the message in it. */
   onConfirm: () => Promise<void>;
+  /** A yes that takes nothing away (pinning a comment) is the page's main button, not the red one */
+  plain?: boolean;
 };
 
 /** A yes or no that grows out of its button like every other dialog (M-04). */
-export function ConfirmButton({ label, title, body, confirm, triggerClassName = "text-button", magnet, tone, onClosed, labelKey, onConfirm }: Props) {
+export function ConfirmButton({ label, title, body, confirm, triggerClassName = "text-button", magnet, tone, onClosed, labelKey, onConfirm, plain }: Props) {
   return (
     <MorphDialog label={label} title={title} triggerClassName={triggerClassName} magnet={magnet} tone={tone} onClosed={onClosed} labelKey={labelKey}>
-      {(close) => <Confirm body={body} confirm={confirm} onConfirm={onConfirm} close={close} />}
+      {(close) => <Confirm body={body} confirm={confirm} onConfirm={onConfirm} close={close} plain={plain} />}
     </MorphDialog>
   );
 }
 
-function Confirm({ body, confirm, onConfirm, close }: Pick<Props, "body" | "confirm" | "onConfirm"> & { close: () => void }) {
+function Confirm({ body, confirm, onConfirm, close, plain }: Pick<Props, "body" | "confirm" | "onConfirm" | "plain"> & { close: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +57,7 @@ function Confirm({ body, confirm, onConfirm, close }: Pick<Props, "body" | "conf
       {body && <div className="morph-body">{body}</div>}
       <FormError>{error}</FormError>
       <div className="dialog-actions">
-        <button type="button" className="button button-danger" disabled={busy} onClick={() => void run()}>
+        <button type="button" className={`button ${plain ? "button-primary" : "button-danger"}`} disabled={busy} onClick={() => void run()}>
           {confirm}
         </button>
         <button type="button" className="button" onClick={close}>

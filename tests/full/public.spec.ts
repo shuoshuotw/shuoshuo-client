@@ -1,4 +1,4 @@
-import { coreCall, coreToken, expect, newUser, quoteHeading, signIn, submitQuote, test, uniqueQuote } from "./helpers";
+import { coreCall, coreToken, expect, newUser, quoteHeading, reactionSent, signIn, submitQuote, test, uniqueQuote } from "./helpers";
 
 test("E2E-01: an anonymous visitor reads, draws, filters and shares", async ({ page }) => {
   // The desktop share sheet cannot be driven from a test; without it the button copies the link
@@ -12,7 +12,8 @@ test("E2E-01: an anonymous visitor reads, draws, filters and shares", async ({ p
   await page.getByRole("button", { name: "換一句" }).click();
   await expect(quoteHeading(page).locator(".sr-only")).not.toHaveText(first!.slice(0, first!.length / 2), { timeout: 5000 });
 
-  await page.getByRole("link", { name: /^留言/ }).click();
+  // The sentence's own page, from the newest quotes below it
+  await page.getByRole("link", { name: "讀這句" }).first().click();
   await page.waitForURL(/\/q\//);
   await page.getByRole("button", { name: "分享連結" }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
@@ -44,8 +45,8 @@ test("/quotes: filters by category and loads the next page", async ({ page }) =>
   await expect.poll(() => page.locator(".quote-row-item").count()).toBeGreaterThan(20);
 
   await page.getByRole("button", { name: "詩詞" }).click();
-  await expect.poll(async () => new Set(await page.locator(".quote-row-meta span:nth-child(2)").allTextContents()).size).toBe(1);
-  await expect(page.locator(".quote-row-meta span:nth-child(2)").first()).toHaveText("詩詞");
+  await expect.poll(async () => new Set(await page.locator(".quote-row-item .category-chip").allTextContents()).size).toBe(1);
+  await expect(page.locator(".quote-row-item .category-chip").first()).toHaveText("詩詞");
 });
 
 test("PV-05: unknown users are a 404 and a name with special characters round-trips", async ({ page, request }) => {
@@ -55,7 +56,7 @@ test("PV-05: unknown users are a 404 and a name with special characters round-tr
   await signIn(page, user);
   await page.getByLabel("名稱").fill(`測試_中文-${user.id.slice(0, 6)}`);
   await page.getByRole("button", { name: "更新名稱" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: `測試_中文-${user.id.slice(0, 6)}` })).toBeVisible();
+  await expect(page.getByText("名稱已更新")).toBeVisible();
   // The public page opens in a new tab
   const [profile] = await Promise.all([page.context().waitForEvent("page"), page.getByRole("link", { name: "查看我的公開頁" }).click()]);
   await profile.waitForURL(/\/u\//);
@@ -83,10 +84,10 @@ test("CD-01: public pages are cacheable and carry no cookie, private ones are no
   }
 });
 
-test("SEC-12: the callback never redirects off site", async ({ request }) => {
+test("SEC-12: the callback never redirects off site", async ({ request, baseURL }) => {
   for (const next of ["https://evil.example", "//evil.example", "/\\evil.example"]) {
     const response = await request.get(`/auth/callback?error=access_denied&next=${encodeURIComponent(next)}`, { maxRedirects: 0 });
-    expect(new URL(response.headers().location!).host, next).toBe("localhost:5000");
+    expect(new URL(response.headers().location!).host, next).toBe(new URL(baseURL!).host);
   }
 });
 
@@ -130,7 +131,9 @@ test("CD-03: a signed-in reader sees their own avatar and state on cached HTML",
   const user = await newUser();
   await signIn(page, user);
   const { id } = await submitQuote(page);
+  const sent = reactionSent(page, "like");
   await page.getByRole("button", { name: /^按讚/ }).click();
+  await sent;
   await expect(page.getByRole("button", { name: /^按讚/ })).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await expect(page.getByRole("button", { name: /^按讚/ })).toHaveAttribute("aria-pressed", "true");

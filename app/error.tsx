@@ -7,7 +7,7 @@ import { MissingCase } from "@/components/missing-case";
 /** §12.7 /500: the chips knocked over. Sentry reporting arrives with M7. */
 export default function ErrorPage({ reset }: { reset: () => void }) {
   return (
-    <main className="missing">
+    <main className="page-main missing">
       <MissingCase gone={3} fallen />
       <div className="missing-text">
         <h1 className="section-title">字盤翻倒了</h1>

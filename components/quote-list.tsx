@@ -10,7 +10,7 @@ import { ListFooter } from "./list-footer";
 import { useListReactions } from "./reaction-buttons";
 import { QuoteChartRow, QuotePodium, QuoteRow, QuoteRowSkeleton } from "./quote-row";
 import { Reveal } from "./reveal";
-import { RetryNote } from "./state-note";
+import { RetryNote } from "./retry-note";
 import { TypeCase } from "./type-case";
 
 /** M-09: rows that are new since the last render come in. theme.js masks the first paint until this runs. `still`: the
@@ -24,7 +24,7 @@ export function useRowsEnter<T extends HTMLElement = HTMLDivElement>(count: numb
     if (count < seen.current) seen.current = 0;
     const fresh = root ? Array.from(root.children).slice(seen.current) : [];
     seen.current = count;
-    if (fresh.length > 0) void staggerRows(fresh);
+    if (fresh.length > 0) staggerRows(fresh);
     else document.documentElement.classList.remove("pick-pending");
   }, [count]);
 

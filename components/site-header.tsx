@@ -4,13 +4,12 @@ import { BookOpen, Flame, type LucideIcon, PenLine, Quote } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef } from "react";
+import { DOCS_URL } from "@/lib/docs";
 import { AuthButton } from "./auth-button";
 import { useSlidingPill } from "./dock-slot";
 import { LinkButton } from "./link-button";
 import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
-
-export const DOCS_URL = "https://docs.shuoshuotw.xyz";
 
 const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/quotes", label: "說說", icon: Quote },

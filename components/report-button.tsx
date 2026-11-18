@@ -3,8 +3,8 @@
 import { Flag } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { api } from "@/lib/api/browser";
-import type { ReportReason } from "@/lib/api/client";
-import { REPORT_REASONS } from "@/lib/labels";
+import type { ReportReasonInput } from "@/lib/api/client";
+import { REPORT_CHOICES } from "@/lib/labels";
 import { notify } from "@/lib/toast";
 import { ChoiceField, Field, FormError, useFormErrors } from "./form";
 import { MorphDialog } from "./morph-dialog";
@@ -21,17 +21,14 @@ export function ReportButton({ path, title, triggerClassName = "text-button", ma
 }
 
 function ReportForm({ path, close }: { path: string; close: () => void }) {
-  const [reason, setReason] = useState<ReportReason>("spam");
+  const [reason, setReason] = useState<ReportReasonInput>("spam");
   const [detail, setDetail] = useState("");
   const [busy, setBusy] = useState(false);
-  const { form, errors, formError, fail, failWith, clear } = useFormErrors();
+  const { form, errors, formError, failWith, clear } = useFormErrors();
+  const subject = path.includes("/comments/") ? "留言" : "說說";
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (reason === "other" && !detail.trim()) {
-      fail({ detail: "原因為其他時請說明" });
-      return;
-    }
     setBusy(true);
     clear();
     try {
@@ -48,8 +45,8 @@ function ReportForm({ path, close }: { path: string; close: () => void }) {
 
   return (
     <form className="form" ref={form} onSubmit={(event) => void submit(event)} noValidate>
-      <ChoiceField label="原因" value={reason} options={Object.entries(REPORT_REASONS) as [ReportReason, string][]} onChange={setReason} error={errors.reason} />
-      <Field label="補充說明" error={errors.detail} hint={reason === "other" ? "必填，最多 500 字" : "選填，最多 500 字"}>
+      <ChoiceField label={`你認為這則${subject}發生什麼問題`} value={reason} options={REPORT_CHOICES} onChange={setReason} error={errors.reason} />
+      <Field label="補充說明" error={errors.detail} hint="選填，最多 500 字">
         {(props) => <textarea {...props} className="input" rows={3} value={detail} onChange={(event) => setDetail(event.target.value)} />}
       </Field>
       <FormError>{formError}</FormError>

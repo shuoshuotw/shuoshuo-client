@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { coreCall, coreToken, distinctCaller, expect, newUser, signIn, signOut, submitQuote, test, uniqueQuote } from "./helpers";
+import { choose, coreCall, coreToken, distinctCaller, expect, landed, newUser, reactionSent, signIn, signOut, sourceField, submitQuote, test, uniqueQuote } from "./helpers";
 
 test("E2E-02: sign in, submit, the tick, the home page, then my submissions", async ({ page }) => {
   const user = await newUser();
@@ -8,12 +8,13 @@ test("E2E-02: sign in, submit, the tick, the home page, then my submissions", as
   await page.goto("/submit");
   const content = uniqueQuote();
   await page.getByLabel("說說", { exact: true }).fill(content);
-  await expect(page.getByLabel("預覽").getByTestId("quote-text")).toContainText(content);
-  await page.getByLabel("出處").fill("全堆疊測試");
+  await sourceField(page).fill("全堆疊測試");
+  // The card signs itself with the writer and the source as they are filled in
+  await expect(page.locator(".submit-composer .credit")).toContainText(`${user.username}‧全堆疊測試`);
   await page.getByRole("radio", { name: "原創" }).check({ force: true });
   await page.getByRole("button", { name: "送出" }).click();
-  // M-08: the button turns into the tick where it was pressed, then the page goes home
-  await expect(page.getByRole("button", { name: "已送出" })).toBeVisible();
+  // M-08: the card is sent where it stands, and says so to a screen reader, then the page goes home
+  await expect(page.locator("form > [role='status']")).toHaveText("已送出，正在回到首頁");
   await page.waitForURL("/");
   await expect(page.getByText("說說已送出")).toBeVisible();
 
@@ -30,12 +31,13 @@ test("M-15: a bad submission shakes, explains and takes focus", async ({ page })
   await expect(page.getByLabel("說說", { exact: true })).toBeFocused();
   await expect(page.locator(".field.field-shake").first()).toBeVisible();
 
-  // Core's own wording reaches the field
-  await page.getByLabel("說說", { exact: true }).fill("这是简体中文的句子");
-  await page.getByLabel("出處").fill("全堆疊測試");
+  // Core's own wording reaches the page: a sentence that is already there
+  const { body } = await coreCall("/v1/quotes?limit=1");
+  await page.getByLabel("說說", { exact: true }).fill((body!.data as unknown as { content: string }[])[0]!.content);
+  await sourceField(page).fill("全堆疊測試");
   await page.getByRole("radio", { name: "原創" }).check({ force: true });
   await page.getByRole("button", { name: "送出" }).click();
-  await expect(page.getByText("僅接受繁體中文").last()).toBeVisible();
+  await expect(page.getByText("存在相同的說說").last()).toBeVisible();
 });
 
 test("E2E-03: reactions survive a reload, appear in my lists and can be undone", async ({ page }) => {
@@ -46,8 +48,10 @@ test("E2E-03: reactions survive a reload, appear in my lists and can be undone",
 
   await signIn(page, await newUser());
   await page.goto(`/q/${id}`);
+  const sent = [reactionSent(page, "like"), reactionSent(page, "favorite")];
   await page.getByRole("button", { name: /^按讚/ }).click();
   await page.getByRole("button", { name: /^收藏/ }).click();
+  await Promise.all(sent);
   await expect(page.getByRole("button", { name: /^按讚/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: /^收藏/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "按讚，目前 1 個" })).toBeVisible();
@@ -113,10 +117,13 @@ test("E2E-04: comment, page, edit, pin, delete", async ({ page }) => {
   await expect(edited).toContainText("已編輯");
 
   await edited.getByRole("button", { name: "置頂", exact: true }).click();
+  // A pin asks first, like deleting
+  await page.getByRole("dialog", { name: "置頂這則留言？" }).getByRole("button", { name: "置頂", exact: true }).click();
   await expect(page.locator(".comment").first()).toContainText("改過的留言");
   await expect(page.locator(".comment").first()).toContainText("已置頂");
 
   await page.locator(".comment").first().getByRole("button", { name: "取消置頂" }).click();
+  await page.getByRole("dialog", { name: "取消置頂這則留言？" }).getByRole("button", { name: "取消置頂" }).click();
   await expect(page.locator(".comment[data-pinned]")).toHaveCount(0);
 
   await edited.getByRole("button", { name: "刪除" }).click();
@@ -131,7 +138,7 @@ test("E2E-12: edit marks the quote, a rename follows it, and deletion keeps the 
   const { id, content } = await submitQuote(page);
 
   await page.getByRole("button", { name: "編輯" }).click();
-  const dialog = page.getByRole("dialog", { name: "編輯說說" });
+  const dialog = await landed(page.getByRole("dialog", { name: "編輯說說" }));
   await dialog.getByLabel("說說", { exact: true }).fill(`${content}啊`);
   await dialog.getByRole("button", { name: "儲存" }).click();
   await expect(page.getByText("已編輯")).toBeVisible();
@@ -147,7 +154,7 @@ test("E2E-12: edit marks the quote, a rename follows it, and deletion keeps the 
 
   await page.goto("/me/security");
   await page.getByRole("button", { name: "刪除帳號" }).click();
-  const deletion = page.getByRole("dialog", { name: "刪除帳號" });
+  const deletion = await landed(page.getByRole("dialog", { name: "刪除帳號" }));
   await deletion.getByRole("textbox").fill("打錯的名字");
   await deletion.getByRole("button", { name: "永久刪除" }).click();
   await expect(deletion.getByText("名稱不符")).toBeVisible();
@@ -172,8 +179,7 @@ test("E2E-13: a closed list says so on the public page and the API refuses it", 
   const owner = await newUser();
   const other = await newUser();
   await signIn(page, owner);
-  await page.getByRole("button", { name: /我的收藏/ }).click();
-  await page.getByRole("option", { name: "私人" }).click();
+  await choose(page, "我的收藏", "私人");
   await expect(page.getByText("設定已更新")).toBeVisible();
 
   const { status, body } = await coreCall(`/v1/users/${encodeURIComponent(owner.username)}/favorites`, { token: await coreToken(other) });
@@ -287,11 +293,17 @@ test("AU-03: no passkey yet explains that OAuth comes first", async ({ page, con
 });
 
 test("UI-05: the signed-in pages pass axe", async ({ page }) => {
+  // Twelve pages, each left to settle before it is read
+  test.setTimeout(150_000);
   const user = await newUser();
   await signIn(page, user);
   const { id } = await submitQuote(page);
   let requests = 0;
-  page.on("request", () => (requests += 1));
+  // What a loop would keep asking for: Core and Supabase. The pages Next fetches ahead for the links in sight (their
+  // data and their scripts) are not that, and on a busy machine they are still arriving
+  page.on("request", (request) => {
+    if (!/\/_next\/|[?&]_rsc=/.test(request.url())) requests += 1;
+  });
   for (const path of ["/me", "/me/quotes", "/me/favorites", "/me/likes", "/me/api-keys", "/me/security", "/submit", `/q/${id}`, `/u/${encodeURIComponent(user.username)}`, "/quotes", "/trending", "/login"]) {
     requests = 0;
     await page.goto(path);

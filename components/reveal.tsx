@@ -32,6 +32,17 @@ export function Reveal({ loading, skeleton, children }: { loading: boolean; skel
   }, [phase]);
 
   const root = useRef<HTMLDivElement>(null);
+  // What arrives out of sight (the comments below a quote opening under its view transition, say) just stands: no one
+  // would see the blur or the spring, and they cost a phone the frames of what is in sight
+  useLayoutEffect(() => {
+    if (phase !== "revealing") return;
+    const box = root.current?.getBoundingClientRect();
+    if (box && (box.top >= innerHeight || box.bottom <= 0)) {
+      setPhase("done");
+      setEntered(false);
+    }
+  }, [phase]);
+
   const height = useRef(0);
   const spring = useRef<Animation | null>(null);
   useLayoutEffect(() => {

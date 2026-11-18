@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
 import type { Me } from "@/lib/api/client";
 import { useSessionStore } from "@/stores/session";
-import { RetryNote } from "./state-note";
+import { RetryNote } from "./retry-note";
 
 /** proxy.ts turns away anyone without a session; this covers the session ending while the page is open. */
 export function MeGate({ children }: { children: (me: Me) => ReactNode }) {

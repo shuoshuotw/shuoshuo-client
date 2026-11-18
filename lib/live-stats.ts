@@ -15,15 +15,21 @@ type Broadcast = LiveCounts & { id: string };
 export function useLiveQuoteStats() {
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel("quote-stats")
-      .on("broadcast", { event: "stats" }, ({ payload }: { payload: Record<string, unknown> }) => {
-        const { id, like_count, favorite_count, comment_count } = payload as unknown as Broadcast;
-        useLiveStats.getState().put(id, { like_count, favorite_count, comment_count });
-        // Likes and favourites are shown from the reaction store, which leaves a reader's own change in flight alone
-        useReactionStore.getState().merge(id, { like_count, favorite_count });
-      })
-      .subscribe();
-    return () => void supabase.removeChannel(channel);
+    // Live counts are an extra. Where the socket cannot open (Safari throws when a policy or the network blocks it), the
+    // list still shows the counts it loaded with, instead of the whole page going to the error screen
+    try {
+      const channel = supabase
+        .channel("quote-stats")
+        .on("broadcast", { event: "stats" }, ({ payload }: { payload: Record<string, unknown> }) => {
+          const { id, like_count, favorite_count, comment_count } = payload as unknown as Broadcast;
+          useLiveStats.getState().put(id, { like_count, favorite_count, comment_count });
+          // Likes and favourites are shown from the reaction store, which leaves a reader's own change in flight alone
+          useReactionStore.getState().merge(id, { like_count, favorite_count });
+        })
+        .subscribe();
+      return () => void supabase.removeChannel(channel);
+    } catch {
+      return undefined;
+    }
   }, []);
 }

@@ -13,7 +13,7 @@ import { MeGate } from "@/components/me-gate";
 import { Notice } from "@/components/notice";
 import { PageHead } from "@/components/site-chrome";
 import { StandingCard } from "@/components/standing-card";
-import { RetryNote } from "@/components/state-note";
+import { RetryNote } from "@/components/retry-note";
 import { api, browserAuth } from "@/lib/api/browser";
 import { ApiFailure, failureMessage, type Me } from "@/lib/api/client";
 import { countChars } from "@/lib/format";

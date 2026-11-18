@@ -24,8 +24,6 @@ export const emptyDraft: QuoteDraft = { content: "", source_from: "", category: 
 // Errors that are about one field, whichever way Core phrases them
 export const QUOTE_ERROR_FIELDS = {
   QUOTE_DUPLICATE: "content",
-  QUOTE_NOT_TRADITIONAL: "content",
-  QUOTE_NO_HAN: "content",
   QUOTE_EDIT_TOO_LARGE: "content",
 };
 
@@ -54,7 +52,7 @@ export function QuoteFields({ draft, errors, onChange, withContent = true, quiet
   return (
     <>
       {withContent && (
-        <Field label="說說" error={errors.content} quiet={quietErrors} hint={`${countChars(draft.content)} / 100 字，僅接受繁體中文`}>
+        <Field label="說說" error={errors.content} quiet={quietErrors} hint={`${countChars(draft.content)} / 100 字`}>
           {(props) => <textarea {...props} className="input" rows={4} value={draft.content} onChange={(event) => onChange({ ...draft, content: event.target.value })} />}
         </Field>
       )}

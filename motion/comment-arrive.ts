@@ -91,7 +91,8 @@ export async function dropRow(row: HTMLElement | null, commit: () => void) {
 }
 
 /** Rows that moved since `before` was taken slide from where they were into where they are now (FLIP). */
-function settle(list: HTMLElement | null, before: Map<string, number>, except?: HTMLElement) {
+export function settle(list: HTMLElement | null, before: Map<string, number>, except?: HTMLElement) {
+  if (prefersReduced()) return;
   for (const other of list?.querySelectorAll<HTMLElement>(":scope > [data-id]") ?? []) {
     const was = before.get(other.dataset.id!);
     if (other === except || was === undefined) continue;

@@ -12,7 +12,12 @@ function errorCode(message: string | null, code: string | null) {
 }
 
 export async function GET(request: NextRequest) {
-  const { origin, searchParams } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:5002";
+  if (process.env.NODE_ENV === "production" && !siteUrl) {
+    throw new Error("NEXT_PUBLIC_SITE_URL must be set in production");
+  }
+  const origin = siteUrl ? new URL(siteUrl).origin : request.nextUrl.origin;
   // The redirect allow-list holds exact URLs (§7.1), so `next` travels in a short-lived cookie the login page sets
   const next = safeNext(searchParams.get("next") ?? request.cookies.get(NEXT_COOKIE)?.value);
   const code = searchParams.get("code");
