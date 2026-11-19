@@ -40,7 +40,7 @@ test("E2E-10: the queue, a decision, and straight on to the next case", async ({
   await expect(page.getByText(first.content, { exact: true }).first()).toBeVisible();
   await expect(page.getByText("一直重複貼")).toBeVisible();
 
-  await page.getByLabel(/^確認違規/).check();
+  await page.getByLabel("確認違規", { exact: true }).check();
   await choose(page, "違規原因", "垃圾內容");
   await page.getByLabel("內部備註").fill("明顯灌水");
   await page.getByRole("button", { name: "確認違規" }).click();
@@ -58,6 +58,28 @@ test("E2E-10: the queue, a decision, and straight on to the next case", async ({
     await expect(page.getByRole("heading", { level: 1, name: "這則說說已移除" })).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: 90_000, intervals: [5000] });
   await expect(page.getByText("原因類別：垃圾內容")).toBeVisible();
+});
+
+test("upheld without a penalty: the quote is taken down and its author keeps a clean record", async ({ page }) => {
+  const { author, content, id } = await reportedQuote();
+  await signIn(page, await newModerator());
+  await page.goto("/admin/cases");
+  await page.getByRole("link", { name: content }).click();
+  await page.waitForURL(/\/admin\/cases\/[0-9a-f-]{36}$/);
+  const caseUrl = page.url();
+
+  await page.getByLabel("確認違規", { exact: true }).check();
+  await page.getByLabel("確認違規但不處分").check();
+  await page.getByRole("button", { name: "確認違規" }).click();
+  await expect(page.getByText("已確認違規並移除內容，不處分")).toBeVisible();
+
+  expect((await coreCall(`/v1/quotes/${id}`)).status).toBe(410);
+  const token = await coreToken(author);
+  expect((await coreCall("/v1/me/violations", { token })).body!.data).toEqual([]);
+  expect((await coreCall("/v1/me/sanctions", { token })).body!.data).toEqual([]);
+  // The decided case says how it went
+  await page.goto(caseUrl);
+  await expect(page.getByText(/確認違規（.+），不處分/)).toBeVisible();
 });
 
 test("a case already decided elsewhere says so and offers the next", async ({ page }) => {
@@ -103,7 +125,7 @@ test("the whole way: uphold, barred from submitting, notice, appeal, accepted", 
   await signIn(moderatorPage, await newModerator());
   await moderatorPage.goto("/admin/cases");
   await moderatorPage.getByRole("link", { name: content }).click();
-  await moderatorPage.getByLabel(/^確認違規/).check();
+  await moderatorPage.getByLabel("確認違規", { exact: true }).check();
   await moderatorPage.getByRole("button", { name: "確認違規" }).click();
   await expect.poll(async () => (await coreCall(`/v1/quotes/${id}`)).status).toBe(410);
 
@@ -167,8 +189,8 @@ test("a manual ban and its lift, from the user page", async ({ page }) => {
   await expect(page.getByRole("cell", { name: "手動停權測試" })).toBeVisible();
 
   await page.getByRole("button", { name: "解除" }).click();
+  // Lifted without a reason: the field is optional
   const lift = await landed(page.getByRole("dialog", { name: "解除這項處分" }));
-  await lift.getByLabel("原因").fill("誤判");
   await lift.getByRole("button", { name: "解除處分" }).click();
   await expect(page.getByText("狀態正常")).toBeVisible();
   await expect(page.getByRole("cell", { name: "已解除" })).toBeVisible();

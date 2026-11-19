@@ -844,8 +844,9 @@ body {
 }
 
 /* Fields, boxes and selects pull too, anywhere, a third as far and without swelling, so what is being typed into keeps
-   still enough to read; they light up under the pointer like the buttons and keep their own edge and focus ring */
-:is(input.input, textarea.input, .check, .choice-trigger, .choice-option) {
+   still enough to read; they light up under the pointer like the buttons and keep their own edge and focus ring. A
+   select's rows stay put: pulled, a row's rounded tint left the list's clipped edge, its corners cut square */
+:is(input.input, textarea.input, .check, .choice-trigger) {
   transform: translate(calc(var(--mag-x, 0px) / 3), calc(var(--mag-y, 0px) / 3));
   background-image: radial-gradient(circle at var(--lit-x, 50%) var(--lit-y, 50%), color-mix(in oklab, var(--lit) calc(var(--lit-a) * 100%), transparent), transparent 90%);
   transition:
@@ -855,7 +856,7 @@ body {
     --lit-a var(--duration-fast) var(--ease-out);
 }
 
-:is(input.input, textarea.input, .check, .choice-trigger, .choice-option)[data-magnet-on="true"] {
+:is(input.input, textarea.input, .check, .choice-trigger)[data-magnet-on="true"] {
   --lit-a: 1;
 }
 
@@ -1821,7 +1822,7 @@ body {
      the move began, each had to be drawn again first, and a phone showed the bar with pieces missing for the first few
      frames. (The categories' bar only rides down as a whole; what it shows is its own body's doing) */
   .dock .dock-slot > :is(.stage-toolbar, .detail-actions, .me-dock-bar, .route-dock-bar, .dock-cases),
-  .dock-slot :is(.draw-wrap, .draw-face, .draw-icon, .nav-pill),
+  .dock-slot :is(.draw-wrap, .draw-face, .draw-icon, .nav-pill, .toolbar-gap),
   .dock-slot :is(button, a):not(:is(.draw-wrap, .dock-cases) *) {
     will-change: translate;
   }
@@ -1886,6 +1887,17 @@ body {
   .dock[data-compact="true"] .dock-slot :is(.toolbar-draw, .tool-count) {
     gap: 0;
     padding-inline: 13px;
+  }
+
+  /* Folded, a quote's toolbar has room for its controls alone: the rules between them go and each control narrows a
+     little, so an author's six fit between the dock's two buttons. They spilled over both ends before */
+  .dock[data-compact="true"] .dock-slot .detail-actions .toolbar-gap {
+    display: none;
+  }
+
+  .dock[data-compact="true"] .dock-slot .detail-actions .tool-count {
+    min-width: 38px;
+    padding-inline: 10px;
   }
 
   /* Folded, the draw button is a circle like the controls beside it, not a pill around nothing */

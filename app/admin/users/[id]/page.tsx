@@ -185,7 +185,7 @@ function SanctionRow({ sanction, onDone }: { sanction: Sanction; onDone: () => P
         {sanction.reason}
       </td>
       <td role="cell" className="table-nowrap" data-label="期間">
-        {formatStamp(sanction.starts_at)} 至 {sanction.ends_at ? formatStamp(sanction.ends_at) : "永久"}
+        <span>{formatStamp(sanction.starts_at)}</span> 至 <span>{sanction.ends_at ? formatStamp(sanction.ends_at) : "永久"}</span>
       </td>
       <td role="cell" className="table-nowrap" data-label="狀態">
         {sanction.lifted_at ? "已解除" : active ? "生效中" : "已到期"}
@@ -193,7 +193,7 @@ function SanctionRow({ sanction, onDone }: { sanction: Sanction; onDone: () => P
       <td role="cell">
         {active && (
           <MorphDialog label="解除" title="解除這項處分" triggerClassName="text-button cell-button" magnet>
-            {(close) => <ReasonForm path={`/v1/admin/sanctions/${sanction.id}/lift`} hint="API Key 不會恢復（D-17）。" confirm="解除處分" done="處分已解除" close={close} onDone={onDone} />}
+            {(close) => <ReasonForm path={`/v1/admin/sanctions/${sanction.id}/lift`} hint="解除處分不會恢復被撤銷的 API Key" confirm="解除處分" done="處分已解除" optional close={close} onDone={onDone} />}
           </MorphDialog>
         )}
       </td>
@@ -201,15 +201,15 @@ function SanctionRow({ sanction, onDone }: { sanction: Sanction; onDone: () => P
   );
 }
 
-type ReasonProps = { path: string; hint: string; confirm: string; done: string; close: () => void; onDone: () => Promise<void> };
+type ReasonProps = { path: string; hint: string; confirm: string; done: string; optional?: boolean; close: () => void; onDone: () => Promise<void> };
 
 const REASON_MAX = 500;
 
 /** A reason as both dialogs here take it: what is written counted under the field, the advice beside it after a lightbulb. */
-function ReasonField({ value, onChange, error, hint }: { value: string; onChange: (value: string) => void; error: string | undefined; hint: string }) {
+function ReasonField({ value, onChange, error, hint, optional = false }: { value: string; onChange: (value: string) => void; error: string | undefined; hint: string; optional?: boolean }) {
   return (
     <Field
-      label="原因"
+      label={optional ? "原因（選填）" : "原因"}
       error={error}
       quiet
       hint={
@@ -232,23 +232,25 @@ function ReasonField({ value, onChange, error, hint }: { value: string; onChange
 const REASON_RULE = `原因須為 1 至 ${REASON_MAX} 字`;
 const reasonFits = (reason: string) => countChars(reason) >= 1 && countChars(reason) <= REASON_MAX;
 
-function ReasonForm({ path, hint, confirm, done, close, onDone }: ReasonProps) {
+function ReasonForm({ path, hint, confirm, done, optional = false, close, onDone }: ReasonProps) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const { form, errors, fail, failWith, clear } = useFormErrors();
+  const left = optional && countChars(reason) === 0;
 
   // Every message is a toast; the field only turns red and shakes
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!reasonFits(reason)) {
-      fail({ reason: REASON_RULE });
-      void notify(REASON_RULE, "failed");
+    if (!left && !reasonFits(reason)) {
+      const rule = optional ? `原因最多 ${REASON_MAX} 字` : REASON_RULE;
+      fail({ reason: rule });
+      void notify(rule, "failed");
       return;
     }
     setBusy(true);
     clear();
     try {
-      await api(path, { method: "POST", body: { reason: reason.trim() } });
+      await api(path, { method: "POST", body: left ? {} : { reason: reason.trim() } });
       void notify(done);
       close();
       await onDone();
@@ -262,7 +264,7 @@ function ReasonForm({ path, hint, confirm, done, close, onDone }: ReasonProps) {
 
   return (
     <form className="form" ref={form} onSubmit={(event) => void submit(event)} noValidate>
-      <ReasonField value={reason} onChange={setReason} error={errors.reason} hint={hint} />
+      <ReasonField value={reason} onChange={setReason} error={errors.reason} hint={hint} optional={optional} />
       <div className="dialog-actions">
         <button type="submit" className="button button-primary" disabled={busy}>
           {confirm}

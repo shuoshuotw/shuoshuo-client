@@ -127,7 +127,8 @@ export function EditQuoteButton<T extends Quote | OwnQuote>({ quote, onSaved, tr
       label={
         <>
           <Pencil aria-hidden="true" />
-          編輯
+          {/* On a quote's toolbar its name is a tool's: shown beside the icon in the page, kept from sight in the dock */}
+          {triggerClassName === "text-button" ? "編輯" : <span className="tool-label">編輯</span>}
         </>
       }
     >
