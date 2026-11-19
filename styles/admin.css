@@ -201,11 +201,19 @@
 }
 
 .resolve-reason > div {
+  display: grid;
+  gap: var(--space-3);
   min-height: 0;
   overflow: hidden;
-  /* Room for the field's focus ring inside the fold */
-  padding: 4px;
-  margin: -4px;
+  /* Room inside the fold for the field's focus ring and for the box's lit edge, which stands 10px out from its words
+     and is pulled up to 14px / 3 further toward the pointer (Atmosphere) */
+  padding: 4px 16px;
+  margin: -4px -16px;
+}
+
+/* The box lights up about its words alone, not across the whole row */
+.resolve-reason .check {
+  justify-self: start;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -587,8 +595,10 @@
     border-bottom: 0;
   }
 
+  /* A value too long for the card's line breaks between its parts (a sanction's two ends) instead of pushing it wider */
   .table-cards tbody td {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
     padding: 0;

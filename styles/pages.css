@@ -393,6 +393,7 @@ select.input {
 /* Every row the trigger's text in the trigger's place: 44px tall, the text 13px in from the edge */
 .choice-option {
   position: relative;
+  isolation: isolate;
   height: 44px;
   padding: 0 12px;
   border-radius: 0;
@@ -406,7 +407,7 @@ select.input {
 }
 
 /* The row under the pointer or the keys tinted in the mark's own shape and place, lighter than the mark, so it shows
-   which row a tap would pick; under its text, the row's transform making it a layer of its own */
+   which row a tap would pick; under its text, the row isolated as a layer of its own */
 .choice-option::before {
   content: "";
   position: absolute;

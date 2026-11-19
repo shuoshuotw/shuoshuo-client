@@ -17,9 +17,14 @@ export function MorphMark() {
   const waiting = morphWaiting();
   // In the commit that puts the new page in, before its picture is taken
   useLayoutEffect(landMorph, [pathname]);
+  const mark = <span className="morph-mark" aria-hidden="true" />;
+  // Only a page a morph waits for has the boundary. React starts a view transition for every commit that puts one in,
+  // whatever its classes say: put in on every page, it ran one on every change of page, and the pages' crossfade
+  // (styles/motion.css) covered each page's own entrance (M-12). Taken out again, with exit "none", it starts none
+  if (!waiting) return mark;
   return (
-    <ViewTransition key={pathname} enter={waiting ? "morph" : "none"} exit="none" update="none" share="none" default="none" onEnter={moveMorph}>
-      <span className="morph-mark" aria-hidden="true" />
+    <ViewTransition key={pathname} enter="morph" exit="none" update="none" share="none" default="none" onEnter={moveMorph}>
+      {mark}
     </ViewTransition>
   );
 }

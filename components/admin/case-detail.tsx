@@ -210,7 +210,11 @@ function CaseBody({ detail, onResolved }: { detail: CaseDetail; onResolved: () =
         <ResolveForm detail={detail} onResolved={onResolved} />
       ) : (
         <Notice icon={CheckCheck} title="此檢舉已處理">
-          {detail.resolution === "uphold" ? `確認違規（${reasonLabel(detail.final_reason)}）` : detail.resolution === "dismiss" ? "已撤銷檢舉" : "目標已刪除"}
+          {detail.resolution === "uphold"
+            ? `確認違規（${reasonLabel(detail.final_reason)}）${detail.penalized === false ? "，不處分" : ""}`
+            : detail.resolution === "dismiss"
+              ? "已撤銷檢舉"
+              : "目標已刪除"}
         </Notice>
       )}
 
@@ -345,6 +349,8 @@ function SubjectCard({ detail }: { detail: CaseDetail }) {
 function ResolveForm({ detail, onResolved }: { detail: CaseDetail; onResolved: () => Promise<void> }) {
   const [resolution, setResolution] = useState<"uphold" | "dismiss">("dismiss");
   const [reason, setReason] = useState<ReportReason>(detail.top_reason ?? "spam");
+  // Off: upheld without a penalty, the content taken down and nothing recorded against its author
+  const [penalize, setPenalize] = useState(true);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [gone, setGone] = useState(false);
@@ -356,14 +362,20 @@ function ResolveForm({ detail, onResolved }: { detail: CaseDetail; onResolved: (
     setBusy(true);
     clear();
     try {
-      const body = { resolution, ...(resolution === "uphold" ? { final_reason: reason } : {}), ...(note.trim() ? { note: note.trim() } : {}) };
+      const body = {
+        resolution,
+        ...(resolution === "uphold" ? { final_reason: reason, ...(penalize ? {} : { penalize: false }) } : {}),
+        ...(note.trim() ? { note: note.trim() } : {}),
+      };
       const { effects } = await api<ResolveCaseResult>(`/v1/admin/cases/${detail.id}/resolve`, { method: "POST", body });
       void notify(
         resolution === "dismiss"
           ? "已撤銷檢舉"
-          : effects.sanction?.kind === "account_ban"
-            ? `已確認違規，帳號已停權，撤銷 ${effects.api_keys_revoked ?? 0} 組 API Key`
-            : "已確認違規",
+          : !penalize
+            ? "已確認違規並移除內容，不處分"
+            : effects.sanction?.kind === "account_ban"
+              ? `已確認違規，帳號已停權，撤銷 ${effects.api_keys_revoked ?? 0} 組 API Key`
+              : "已確認違規",
       );
       await goNext();
     } catch (failure) {
@@ -379,7 +391,7 @@ function ResolveForm({ detail, onResolved }: { detail: CaseDetail; onResolved: (
         <Gavel aria-hidden="true" />
         處分這則檢舉
       </h2>
-      {detail.subject?.would_ban && (
+      {detail.subject?.would_ban && penalize && (
         <Notice icon={CircleX} tone="danger" title="確認這件會讓帳號停權">
           這會是第 {detail.subject.standing.strike_limit} 次違規：帳號會自動停權，所有 API Key 都會撤銷。
         </Notice>
@@ -399,6 +411,11 @@ function ResolveForm({ detail, onResolved }: { detail: CaseDetail; onResolved: (
       <div className="resolve-reason" data-open={resolution === "uphold" || undefined} inert={resolution !== "uphold"}>
         <div>
           <ChoiceField label="違規原因" value={reason} options={Object.entries(REPORT_REASONS) as [ReportReason, string][]} onChange={setReason} error={errors.final_reason} />
+          <label className="check">
+            <input type="checkbox" checked={!penalize} onChange={(event) => setPenalize(!event.target.checked)} />
+            <span>確認違規但不處分</span>
+          </label>
+          <p className="field-hint">內容一樣會被移除，但不會記錄違規、不計入違規次數，也不會處分。</p>
         </div>
       </div>
       <Field

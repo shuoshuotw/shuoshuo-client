@@ -1,13 +1,18 @@
 import { prefersReduced } from "./log";
 
-// What moves as one piece in a bar; a bar's own controls otherwise
-const MOVERS = ".draw-wrap, .nav-pill, :is(button, a):not(.draw-wrap *)";
+// What moves as one piece in a bar; a bar's own controls and the rules between them otherwise. Left out, a rule stayed
+// where it stood as the controls around it slid away
+const MOVERS = ".draw-wrap, .nav-pill, .toolbar-gap, :is(button, a):not(.draw-wrap *)";
 // What the folded bar has no room for
 const FADERS = ".toolbar-draw-label, .count, .route-tab-label, .draw-sheen";
 // The slot's own timing, both ways, as when its width and its place were tweened: the dock's spring over 540 ms, what
 // the folded bar has no room for fading in 220
 const MOVE_MS = 540;
 const FADE: KeyframeAnimationOptions = { duration: 220, easing: "ease-out", fill: "both" };
+// A control the folded bar has no room for at all leaves sight at once, and comes back only once the face has grown
+// out past it
+const GONE: KeyframeAnimationOptions = { duration: 120, easing: "ease-out", fill: "both" };
+const BACK: KeyframeAnimationOptions = { duration: 160, delay: 120, easing: "ease-out", fill: "both" };
 
 // One piece's move: what it animates, its value in the open layout and in the folded one, and its timing
 type Move = { target: Element; property: string; pseudoElement?: string; open: string; folded: string; timing: KeyframeAnimationOptions; animation: Animation };
@@ -68,7 +73,18 @@ export function foldSlot(dock: HTMLElement, compact: boolean) {
   const current = bar.querySelector<HTMLElement>("[aria-current='page']");
   // A sliding pill is placed a frame late (useSlidingPill); the tab it sits under says where it is
   const boxOf = (piece: HTMLElement) => (piece.matches(".nav-pill") && current ? current : piece).getBoundingClientRect();
-  const measure = () => ({ bar: bar.getBoundingClientRect(), pieces: pieces.map(boxOf), icon: bar.querySelector(".draw-icon")?.getBoundingClientRect() });
+  // What clips each piece: the bar, or a scroller inside it (the personal centre's tabs)
+  const clips = pieces.map((piece) => {
+    let node = piece.parentElement;
+    while (node && node !== bar && getComputedStyle(node).overflowX === "visible") node = node.parentElement;
+    return node ?? bar;
+  });
+  const measure = () => ({
+    bar: bar.getBoundingClientRect(),
+    pieces: pieces.map(boxOf),
+    clips: clips.map((clip) => clip.getBoundingClientRect()),
+    icon: bar.querySelector(".draw-icon")?.getBoundingClientRect(),
+  });
   lay(true);
   const folded = measure();
   lay(false);
@@ -91,9 +107,16 @@ export function foldSlot(dock: HTMLElement, compact: boolean) {
   // keeps them in sight on the way: moved by themselves, they left its box as it rode down into the dock's row
   const shift = { x: folded.bar.left - open.bar.left, y: folded.bar.top - open.bar.top };
   move(bar, { translate: [px(0), px(shift.x, shift.y)] });
+  const hidden = (box: DOMRect) => box.width === 0 && box.height === 0;
   pieces.forEach((piece, index) => {
     const from = open.pieces[index]!;
     const to = folded.pieces[index]!;
+    // A piece one of the two layouts hides (the rules a folded quote's toolbar drops) fades where it stands: it has no
+    // place to travel to, and sent toward an empty box it flew off to the screen's corner
+    if (hidden(from) || hidden(to)) {
+      if (!(hidden(from) && hidden(to))) move(piece, { opacity: [hidden(from) ? "0" : "1", hidden(to) ? "0" : "1"] }, undefined, GONE);
+      return;
+    }
     move(piece, { translate: [px(0), px(to.left - from.left - shift.x, to.top - from.top - shift.y)] });
     // A pill under a tab that loses its name narrows as the pages' bar's face does
     if (piece.matches(".nav-pill") && Math.abs(to.width - from.width) > 0.5) move(piece, { translate: [px(0), px(to.width - from.width)] }, "::before");
@@ -106,6 +129,15 @@ export function foldSlot(dock: HTMLElement, compact: boolean) {
     move(piece, { scale: ["1 1", `${glow.toFixed(4)} 1`], translate: [px(0), px(((from.width - 24) * (glow - 1)) / 2)] }, "::before");
     const icon = piece.querySelector(".draw-icon");
     if (icon && open.icon && folded.icon) move(icon, { translate: [px(0), px(folded.icon.left - to.left - (open.icon.left - from.left))] });
+  });
+  // A control the folded bar clips, wholly or in part (the personal centre's last tabs), fades as the fold begins and
+  // comes back late as it opens. The bar keeps its open box on the way, so carried to its folded place it showed past
+  // the narrowing face, over the dock's other buttons, until the folded layout clipped it at the end
+  pieces.forEach((piece, index) => {
+    const to = folded.pieces[index]!;
+    const clip = folded.clips[index]!;
+    if (piece.matches(".nav-pill") || hidden(to) || hidden(open.pieces[index]!)) return;
+    if (to.left < clip.left - 1 || to.right > clip.right + 1) move(piece, { opacity: ["1", "0"] }, undefined, compact ? GONE : BACK);
   });
   if (!whole) for (const fader of bar.querySelectorAll(FADERS)) move(fader, { opacity: ["1", "0"] }, undefined, FADE);
 
